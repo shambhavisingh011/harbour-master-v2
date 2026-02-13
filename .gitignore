@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*.class
+.venv/
+venv/
+ENV/
+
+# Ansible
+*.retry
+ansible.log
+.ansible_cache/
+
+# Sensitive Data (Encrypted files are okay, but plain text secrets are not)
+*.key
+*.pem
+.env
+
+# OS specific
+.DS_Store

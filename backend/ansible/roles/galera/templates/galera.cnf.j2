@@ -1,0 +1,37 @@
+[mysqld]
+# --- Core Galera Settings ---
+bind-address                = {{ bind_address }}
+default_storage_engine      = {{ default_storage_engine }}
+binlog_format               = {{ binlog_format }}
+innodb_autoinc_lock_mode    = {{ innodb_autoinc_lock_mode }}
+# --- Cluster Identity ---
+wsrep_on                    = {{ wsrep_on }}
+wsrep_provider              = {{ wsrep_provider }}
+wsrep_cluster_name          = "{{ wsrep_cluster_name }}"
+wsrep_cluster_address       = "{{ wsrep_cluster_address }}"
+wsrep_node_name             = "{{ inventory_hostname }}"
+wsrep_node_address          = "{{ ansible_host }}"
+# --- State Snapshot Transfer (SST) ---
+wsrep_sst_method            = {{ wsrep_sst_method }}
+wsrep_sst_auth              = "{{ wsrep_sst_auth }}"
+# --- Async Replication Support (The "Publisher" Config) ---
+log_bin                      = /var/log/mysql/mariadb-bin
+log_slave_updates            = 1  # Vital: Write Galera changes to the binlog
+max_binlog_size              = 100M
+# --- Version Specific Logic ---
+{% if mariadb_version == "10.5" %}
+wsrep_strict_ddl            = {{ wsrep_strict_ddl }}
+wsrep_replicate_myisam      = {{ wsrep_replicate_myisam }}
+expire_logs_days            = {{ expire_logs_days }}
+{% endif %}
+{% if mariadb_version in ["10.6", "10.11"] %}
+wsrep_mode                  = {{ wsrep_mode }}
+binlog_expire_logs_seconds  = {{ binlog_expire_logs_seconds }}
+innodb_buffer_pool_instances = {{ innodb_buffer_pool_instances }}
+{% endif %}
+{% if mariadb_version == "10.11" %}
+wsrep_slave_threads         = {{ wsrep_slave_threads }}
+innodb_undo_tablespaces     = {{ innodb_undo_tablespaces }}
+wsrep_gtid_domain_id        = {{ wsrep_gtid_domain_id }}
+{% endif %}
+

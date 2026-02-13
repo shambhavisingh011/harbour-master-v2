@@ -1,0 +1,16 @@
+---
+- name: Restart Prometheus
+  systemd:
+    name: prometheus
+    state: restarted
+    daemon_reload: yes
+- name: Restart Grafana
+  systemd:
+    name: grafana-server
+    state: restarted
+    daemon_reload: yes
+- name: Restart MySQL Exporter
+  systemd:
+    name: prometheus-mysqld-exporter
+    state: restarted
+

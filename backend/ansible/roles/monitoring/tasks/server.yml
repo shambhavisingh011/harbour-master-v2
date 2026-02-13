@@ -1,0 +1,93 @@
+---
+- name: Install dependencies for Grafana
+  apt:
+    name: [apt-transport-https, software-properties-common, wget, gpg]
+    state: present
+- name: Create directory for APT keyrings
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+- name: Import Grafana GPG key
+  get_url:
+    url: https://apt.grafana.com/gpg.key
+    dest: /etc/apt/keyrings/grafana.asc
+    mode: '0644'
+- name: Add Grafana official APT repository
+  apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/grafana.asc] https://apt.grafana.com stable main"
+    state: present
+    filename: grafana
+- name: Install Prometheus and Grafana
+  apt:
+    name: [prometheus, grafana, python3-requests]
+    state: latest
+    update_cache: yes
+- name: Create Provisioning Directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: grafana
+    group: grafana
+    mode: '0755'
+  loop:
+    - /etc/grafana/provisioning/datasources
+    - /etc/grafana/provisioning/dashboards
+    - /var/lib/grafana/dashboards
+- name: Deploy Prometheus Configuration
+  template:
+    src: prometheus.yml.j2
+    dest: /etc/prometheus/prometheus.yml
+    owner: prometheus
+    group: prometheus
+    mode: '0644'
+  notify: Restart Prometheus
+- name: Provision Data Source (Prometheus)
+  template:
+    src: datasources.yml.j2
+    dest: /etc/grafana/provisioning/datasources/prometheus.yaml
+    owner: root
+    group: grafana
+    mode: '0640'
+  notify: Restart Grafana
+- name: Provision Dashboard Provider
+  template:
+    src: dashboards_provider.yml.j2
+    dest: /etc/grafana/provisioning/dashboards/provider.yaml
+    owner: root
+    group: grafana
+    mode: '0640'
+  notify: Restart Grafana
+- name: Sync Static Dashboard JSON Files
+  copy:
+    src: dashboards/  
+    dest: /var/lib/grafana/dashboards/
+    owner: grafana
+    group: grafana
+    mode: '0644'
+  notify: Restart Grafana
+- name: Render Custom Galera Dashboard Template
+  template:
+    src: galera_dashboard.json.j2
+    dest: /var/lib/grafana/dashboards/galera_dashboard.json
+    owner: grafana
+    group: grafana
+    mode: '0644'
+  notify: Restart Grafana
+- name: Force systemd to recognize new units
+  systemd:
+    daemon_reload: yes
+- name: Start and Enable Services
+  systemd:
+    name: "{{ item }}"
+    state: started
+    enabled: yes
+  loop: 
+    - prometheus
+    - grafana-server
+- name: Final Service Check and Restart
+  systemd:
+    name: prometheus
+    state: restarted
+  tags: [always]
+

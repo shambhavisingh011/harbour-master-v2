@@ -1,0 +1,17 @@
+---
+- name: Install LVS and Keepalived
+  apt:
+    name: [keepalived, ipvsadm]
+    state: present
+- name: Enable IP Forwarding
+  sysctl:
+    name: net.ipv4.ip_forward
+    value: '1'
+    state: present
+    reload: yes
+- name: Deploy Keepalived Configuration
+  template:
+    src: keepalived.conf.j2
+    dest: /etc/keepalived/keepalived.conf
+  notify: Restart Keepalived
+

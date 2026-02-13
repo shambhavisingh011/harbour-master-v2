@@ -1,0 +1,10 @@
+- name: "[SERVER] Deploy Prometheus and Grafana Engine"
+  include_tasks: server.yml
+  # This ensures the heavy monitoring stack only installs on your management node
+  when: inventory_hostname == 'monitor-node' or inventory_hostname in groups['monitoring']
+- name: "[CLIENT] Deploy Metrics Exporters"
+  include_tasks: exporters.yml
+  # This deploys Node Exporter and MySQL Exporter to all relevant targets
+  # We skip the monitor-node for the MySQL exporter logic specifically inside exporters.yml
+  when: inventory_hostname != 'monitor-node'
+

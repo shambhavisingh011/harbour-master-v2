@@ -1,0 +1,30 @@
+---
+# This role prepares the OS for MariaDB installation
+- name: Update apt cache
+  apt:
+    update_cache: yes
+  become: yes
+- name: Install dependencies
+  apt:
+    name:
+      - software-properties-common
+      - dirmngr
+      - ca-certificates
+      - curl
+    state: present
+  become: yes
+- name: Add MariaDB GPG key
+  apt_key:
+    url: "https://mariadb.org/mariadb_release_signing_key.asc"
+    state: present
+  become: yes
+- name: Add MariaDB Repository for version {{ mariadb_version }}
+  apt_repository:
+    repo: "deb [arch=arm64,amd64] https://archive.mariadb.org/mariadb-{{ mariadb_version }}/repo/ubuntu {{ ansible_distribution_release }} main"
+    state: present
+  become: yes
+- name: Update apt cache after adding repo
+  apt:
+    update_cache: yes
+  become: yes
+

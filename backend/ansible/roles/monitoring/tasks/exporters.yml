@@ -1,0 +1,69 @@
+---
+- name: Install Node and MySQL Exporters
+  apt:
+    name:
+      - prometheus-node-exporter
+      - prometheus-mysqld-exporter
+      - python3-pymysql
+    state: present
+    update_cache: yes
+  become: yes
+- name: Create MariaDB Exporter User
+  community.mysql.mysql_user:
+    name: "exporter"
+    password: "{{ exporter_password }}"
+    # Essential privileges for Galera and Async monitoring
+    priv: "*.*:PROCESS,REPLICATION CLIENT,SELECT,SLAVE MONITOR"
+    host: "{{ item }}"
+    state: present
+    plugin: mysql_native_password
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+  become: yes
+  loop:
+    - "%"
+    - "localhost"
+    - "127.0.0.1"
+  when: inventory_hostname in groups['galera'] or inventory_hostname in groups['async']
+  # Galera replicates users; ignoring errors ensures the playbook continues if user exists
+  ignore_errors: yes
+  no_log: true
+- name: Configure MySQL Exporter Auth
+  copy:
+    dest: /etc/mysql/exporter.cnf
+    owner: prometheus
+    group: prometheus
+    mode: '0400'
+    content: |
+      [client]
+      user=exporter
+      password={{ exporter_password }}
+      host=localhost
+  become: yes
+  when: inventory_hostname in groups['galera'] or inventory_hostname in groups['async']
+- name: Set MySQL Exporter Flags
+  lineinfile:
+    path: /etc/default/prometheus-mysqld-exporter
+    regexp: '^ARGS='
+    # Ensure the path matches the 'dest' in the previous task
+    line: 'ARGS="--config.my-cnf=/etc/mysql/exporter.cnf --web.listen-address=:9104"'
+  become: yes
+  when: inventory_hostname in groups['galera'] or inventory_hostname in groups['async']
+- name: Restart and Enable Monitoring Agents
+  systemd:
+    name: "{{ item }}"
+    state: restarted
+    enabled: yes
+    daemon_reload: yes
+  become: yes
+  loop:
+    - prometheus-node-exporter
+    - prometheus-mysqld-exporter
+  when: inventory_hostname in groups['galera'] or inventory_hostname in groups['async']
+- name: Ensure Node Exporter is active on non-DB nodes
+  systemd:
+    name: prometheus-node-exporter
+    state: started
+    enabled: yes
+  become: yes
+  when: inventory_hostname not in groups['galera'] and inventory_hostname not in groups['async']
+

@@ -1,0 +1,60 @@
+{% raw %}
+{
+  "annotations": { "list": [ { "builtIn": 1, "datasource": "-- Grafana --", "enable": true, "hide": true, "iconColor": "rgba(0, 211, 255, 1)", "name": "Annotations & Alerts", "type": "dashboard" } ] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "prom_ds_phase5" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "mappings": [], "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } } },
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "showThresholdLabels": false, "showThresholdMarkers": true },
+      "targets": [ { "datasource": { "type": "prometheus", "uid": "prom_ds_phase5" }, "editorMode": "code", "expr": "mysql_up", "format": "time_series", "legendFormat": "{{instance}}", "range": true, "refId": "A" } ],
+      "title": "MySQL/MariaDB Instance Status (1=UP)",
+      "type": "gauge"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prom_ds_phase5" },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "id": 2,
+      "targets": [ { "datasource": { "type": "prometheus", "uid": "prom_ds_phase5" }, "expr": "mysql_slave_status_seconds_behind_master", "legendFormat": "Lag: {{instance}}", "refId": "A" } ],
+      "title": "Async Replication Lag",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prom_ds_phase5" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "id": 3,
+      "targets": [ { "datasource": { "type": "prometheus", "uid": "prom_ds_phase5" }, "expr": "mysql_global_status_wsrep_cluster_size", "legendFormat": "Cluster Size", "refId": "A" } ],
+      "title": "Galera Cluster Size",
+      "type": "timeseries"
+    }
+  ],
+  "schemaVersion": 37,
+  "style": "dark",
+  "tags": ["mariadb", "galera"],
+  "templating": {
+    "list": [
+      {
+        "hide": 0,
+        "label": "Datasource",
+        "name": "DS_PROMETHEUS",
+        "options": [],
+        "query": "prometheus",
+        "refresh": 1,
+        "type": "datasource"
+      }
+    ]
+  },
+  "time": { "from": "now-1h", "to": "now" },
+  "title": "MariaDB Phase 5 Overview",
+  "uid": "mariadb_phase5_custom",
+  "version": 1
+}
+{% endraw %}
+

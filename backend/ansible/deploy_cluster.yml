@@ -1,0 +1,40 @@
+# PHASE 1: Base Preparation (OS & Repos)
+- name: Phase 1 - Prepare All Nodes
+  hosts: all
+  become: yes
+  tasks:
+    - name: Install basic utilities
+      apt:
+        name: [curl, wget, software-properties-common, gnupg2]
+        state: present
+        update_cache: yes
+- name: Phase 2 - Setup MariaDB Repositories
+  hosts: galera, async
+  become: yes
+  roles:
+    - common
+# PHASE 2: Galera Cluster Installation & Configuration
+- name: Phase 3 - Build Galera Cluster
+  hosts: galera
+  become: yes
+  roles:
+    - galera
+# PHASE 4: Setup High Availability (Load Balancers)
+- name: Setup LVS Load Balancers
+  hosts: lvs
+  become: yes
+  roles:
+    - lvs
+# PHASE 5: Setup Async Replication
+- name: Configure Async Replica
+  hosts: async
+  become: yes
+  roles:
+    - async_replica
+# PHASE 6: Setup Monitoring
+- name: Deploy Monitoring Stack
+  hosts: all
+  become: yes
+  roles:
+    - monitoring
+

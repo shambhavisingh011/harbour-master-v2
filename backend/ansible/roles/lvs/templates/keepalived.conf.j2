@@ -1,0 +1,34 @@
+global_defs {
+    router_id {{ inventory_hostname }}
+}
+vrrp_instance VI_1 {
+    state {{ 'MASTER' if inventory_hostname == groups['lvs'][0] else 'BACKUP' }}
+    # This automatically finds the correct interface (enp0s1, ens3, etc.)
+    interface {{ ansible_default_ipv4.interface }}
+    virtual_router_id 51
+    priority {{ 100 if inventory_hostname == groups['lvs'][0] else 90 }}
+    advert_int 1
+    authentication {
+        auth_type PASS
+        # Keepalived only allows max 8 characters for the password
+        auth_pass harbor8
+    }
+    virtual_ipaddress {
+        {{ lvs_vip }}
+    }
+}
+virtual_server {{ lvs_vip }} 3306 {
+    delay_loop 6
+    lb_algo rr
+    lb_kind DR
+    protocol TCP
+    {% for node in galera_nodes %}
+    real_server {{ node.ip }} 3306 {
+        weight 1
+        TCP_CHECK {
+            connect_timeout 3
+        }
+    }
+    {% endfor %}
+}
+

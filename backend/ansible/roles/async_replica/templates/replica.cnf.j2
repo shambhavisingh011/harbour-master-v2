@@ -1,0 +1,22 @@
+[mysqld]
+# --- Core Networking ---
+bind-address            = 0.0.0.0
+# --- Unique Identity ---
+# Deterministic ID: (3rd_octet * 256) + 4th_octet
+{% set octets = ansible_host.split('.') %}
+server-id               = {{ (octets[2]|int * 256) + octets[3]|int }}
+report_host             = {{ inventory_hostname }}
+# --- Replication Settings ---
+gtid_domain_id          = {{ wsrep_gtid_domain_id | default(1) }}
+log_bin                 = /var/log/mysql/mariadb-bin
+binlog_format           = ROW
+# --- Safety & Performance ---
+read_only               = 1
+innodb_autoinc_lock_mode = 2
+# --- Disable Galera ---
+wsrep_on                = OFF
+wsrep_provider          = none
+# --- Logging Management ---
+expire_logs_days        = {{ expire_logs_days | default(7) }}
+max_binlog_size         = 100M
+

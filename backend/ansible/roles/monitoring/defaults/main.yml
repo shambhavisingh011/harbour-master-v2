@@ -1,0 +1,3 @@
+---
+# The password for the MariaDB 'exporter' user
+exporter_password: "monitoring_password_2026"
