@@ -59,12 +59,15 @@
         regexp: '^safe_to_bootstrap: 0'
         line: 'safe_to_bootstrap: 1'
       when: grastate_file.stat.exists
+
     - name: Execute Galera New Cluster command
       command: galera_new_cluster
+
     - name: Wait for Primary Node to be ready
       wait_for:
         port: 3306
-        timeout: 30
+        timeout: 60
+
     - name: Create SST User for replication
       community.mysql.mysql_user:
         name: "{{ wsrep_sst_auth.split(':')[0] }}"
@@ -85,8 +88,8 @@
   throttle: 1
   register: node_join
   until: node_join is success
-  retries: 3
-  delay: 5
+  retries: 5
+  delay: 10
 
 # 6. Verification
 - name: Wait for Galera nodes to reach Synced state
@@ -94,7 +97,7 @@
   register: wait_for_sync
   until: wait_for_sync.rc == 0
   retries: 40
-  delay: 10
+  delay: 15  # Increased delay to allow for background sync
   become: yes
   changed_when: false
 
@@ -142,7 +145,7 @@
     job: "/usr/local/bin/galera_hcip_manager.sh"
   become: yes
 
-# 8. Users & Access Management
+# 8. Users & Access Management (Crucial Fix for Demo)
 - name: Create Replication User for Async Node
   community.mysql.mysql_user:
     name: "{{ repl_user }}"
@@ -154,6 +157,10 @@
   become: yes
   delegate_to: "{{ groups['galera'][0] }}"
   run_once: true
+  register: create_user_repl
+  until: create_user_repl is success
+  retries: 10
+  delay: 20
 
 - name: Allow Root Access from Remote Network
   community.mysql.mysql_user:
@@ -168,3 +175,8 @@
     - "{{ ansible_facts['default_ipv4']['address'] }}"
   become: yes
   delegate_to: "{{ groups['galera'][0] }}"
+  run_once: true
+  register: root_access_repl
+  until: root_access_repl is success
+  retries: 10
+  delay: 20

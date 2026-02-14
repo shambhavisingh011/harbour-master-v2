@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Activity, Server, Database, Loader2, CheckCircle, XCircle, Globe, Zap, Settings, Lock, Eye, EyeOff, ShieldCheck, Layers, Info, Network, Cpu, Terminal } from 'lucide-react';
+
 function App() {
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState(null);
@@ -11,17 +12,19 @@ function App() {
   const [logs, setLogs] = useState([]);
   const [streamStatus, setStreamStatus] = useState("Disconnected");
   const logContainerRef = useRef(null);
+
   const [formData, setFormData] = useState({
     mariadb_version: "10.11",
     node1_ip: "192.168.64.192", node1_name: "db-node-01",
     node2_ip: "192.168.64.193", node2_name: "db-node-02",
     node3_ip: "192.168.64.194", node3_name: "db-node-03",
-    lvs1_ip: "192.168.64.196", lvs2_ip: "192.168.64.124",
-    async_ip: "192.168.64.197", monitor_ip: "192.168.64.200",
+    lvs1_ip: "192.168.64.196", lvs2_ip: "192.168.64.197",
+    async_ip: "192.168.64.199", monitor_ip: "192.168.64.201",
     lvs_vip: "192.168.64.150",
     wsrep_cluster_name: "Galera_Cluster", 
     wsrep_on: "ON",
-    wsrep_provider: "/usr/lib/galera/libgalera_smm.so", binlog_format: "ROW",
+    wsrep_provider: "/usr/lib/galera/libgalera_smm.so", 
+    binlog_format: "ROW",
     default_storage_engine: "InnoDB", innodb_autoinc_lock_mode: "2",
     bind_address: "0.0.0.0", wsrep_sst_method: "mariabackup",
     wsrep_sst_auth: "sst_user:password", repl_user: "repl_user",
@@ -31,6 +34,7 @@ function App() {
     innodb_buffer_pool_instances: "1", wsrep_slave_threads: "4",
     innodb_undo_tablespaces: "3", wsrep_gtid_domain_id: "1"
   });
+
   // --- SSE LOGIC ---
   useEffect(() => {
     let eventSource;
@@ -54,20 +58,23 @@ function App() {
       if (eventSource) eventSource.close();
     };
   }, []);
-  // Auto-scroll logs
+
   useEffect(() => {
     if (logContainerRef.current) {
       logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
     }
   }, [logs]);
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
+
   const handleDeploy = async () => {
     setLoading(true);
     setError(null);
     setReport(null);
     setLogs([]);
+
     const payload = {
       mariadb_version: formData.mariadb_version,
       monitor_ip: formData.monitor_ip,
@@ -100,6 +107,7 @@ function App() {
       innodb_undo_tablespaces: parseInt(formData.innodb_undo_tablespaces),
       wsrep_gtid_domain_id: parseInt(formData.wsrep_gtid_domain_id)
     };
+
     try {
       const response = await fetch('http://192.168.64.191:8000/deploy', {
         method: 'POST',
@@ -121,15 +129,16 @@ function App() {
       setLoading(false);
     }
   };
+
   const RequiredLabel = ({ children }) => (
     <label style={miniLabel}>{children} <span style={{ color: '#E91E63' }}>*</span></label>
   );
-  // Helper to build the Grafana link
+
   const getGrafanaURL = () => {
     const host = formData.monitor_ip;
-    const dashboardUid = "hm_core_metrics_v1"; 
     return `http://${host}:3000/dashboards`;
   };
+
   return (
     <div style={{ padding: '20px', fontFamily: 'Inter, sans-serif', maxWidth: '1600px', margin: '0 auto', backgroundColor: '#f5f2f9', minHeight: '100vh' }}>
       
@@ -147,8 +156,10 @@ function App() {
           </select>
         </div>
       </div>
+
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px 340px', gap: '20px', alignItems: 'start' }}>
         
+        {/* LEFT COLUMN */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div style={formCard}>
             <h3 style={cardTitle}><Database size={18} color="#6739B7" /> Cluster Infrastructure</h3>
@@ -168,47 +179,44 @@ function App() {
               <div style={{ gridColumn: 'span 2' }}><RequiredLabel>virtual-ip (VIP)</RequiredLabel><input name="lvs_vip" value={formData.lvs_vip} onChange={handleChange} style={inputStyle} /></div>
             </div>
           </div>
+
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
             <div style={formCard}>
-              <h3 style={cardTitle}><Settings size={18} color="#6739B7" /> System Variables</h3>
-              <RequiredLabel>wsrep_cluster_name</RequiredLabel><input name="wsrep_cluster_name" value={formData.wsrep_cluster_name} onChange={handleChange} style={inputStyle} />
-              <RequiredLabel>wsrep_on</RequiredLabel><input name="wsrep_on" value={formData.wsrep_on} onChange={handleChange} style={inputStyle} />
-              <RequiredLabel>wsrep_provider</RequiredLabel><input name="wsrep_provider" value={formData.wsrep_provider} onChange={handleChange} style={inputStyle} />
-              <RequiredLabel>binlog_format</RequiredLabel><input name="binlog_format" value={formData.binlog_format} onChange={handleChange} style={inputStyle} />
-              <RequiredLabel>default_storage_engine</RequiredLabel><input name="default_storage_engine" value={formData.default_storage_engine} onChange={handleChange} style={inputStyle} />
-              <RequiredLabel>innodb_autoinc_lock_mode</RequiredLabel><input name="innodb_autoinc_lock_mode" value={formData.innodb_autoinc_lock_mode} onChange={handleChange} style={inputStyle} />
-              <RequiredLabel>bind-address</RequiredLabel><input name="bind_address" value={formData.bind_address} onChange={handleChange} style={inputStyle} />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <div style={formCard}>
-                <h3 style={cardTitle}><Lock size={18} color="#6739B7" /> SST Security</h3>
-                <RequiredLabel>wsrep_sst_method</RequiredLabel><input name="wsrep_sst_method" value={formData.wsrep_sst_method} onChange={handleChange} style={inputStyle} />
-                <RequiredLabel>wsrep_sst_auth (user:pass)</RequiredLabel>
-                <div style={passwordWrapper}>
-                  <input type={showSSTPass ? "text" : "password"} name="wsrep_sst_auth" value={formData.wsrep_sst_auth} onChange={handleChange} style={inputStylePassword} />
-                  <button type="button" onClick={() => setShowSSTPass(!showSSTPass)} style={eyeBtn}>{showSSTPass ? <EyeOff size={16} /> : <Eye size={16} />}</button>
-                </div>
+              <h3 style={cardTitle}><Lock size={18} color="#6739B7" /> SST Security</h3>
+              <RequiredLabel>wsrep_sst_method</RequiredLabel><input name="wsrep_sst_method" value={formData.wsrep_sst_method} onChange={handleChange} style={inputStyle} />
+              <RequiredLabel>wsrep_sst_auth (user:pass)</RequiredLabel>
+              <div style={passwordWrapper}>
+                <input type={showSSTPass ? "text" : "password"} name="wsrep_sst_auth" value={formData.wsrep_sst_auth} onChange={handleChange} style={inputStylePassword} />
+                <button type="button" onClick={() => setShowSSTPass(!showSSTPass)} style={eyeBtn}>{showSSTPass ? <EyeOff size={16} /> : <Eye size={16} />}</button>
               </div>
-              <div style={formCard}>
-                <h3 style={cardTitle}><ShieldCheck size={18} color="#6739B7" /> Replication</h3>
-                <RequiredLabel>repl_user</RequiredLabel><input name="repl_user" value={formData.repl_user} onChange={handleChange} style={inputStyle} />
-                <RequiredLabel>repl_password</RequiredLabel>
-                <div style={passwordWrapper}>
-                  <input type={showReplPass ? "text" : "password"} name="repl_password" value={formData.repl_password} onChange={handleChange} style={inputStylePassword} />
-                  <button type="button" onClick={() => setShowReplPass(!showReplPass)} style={eyeBtn}>{showReplPass ? <EyeOff size={16} /> : <Eye size={16} />}</button>
-                </div>
+            </div>
+
+            <div style={formCard}>
+              <h3 style={cardTitle}><ShieldCheck size={18} color="#6739B7" /> Replication</h3>
+              <RequiredLabel>repl_user</RequiredLabel><input name="repl_user" value={formData.repl_user} onChange={handleChange} style={inputStyle} />
+              <RequiredLabel>repl_password</RequiredLabel>
+              <div style={passwordWrapper}>
+                <input type={showReplPass ? "text" : "password"} name="repl_password" value={formData.repl_password} onChange={handleChange} style={inputStylePassword} />
+                <button type="button" onClick={() => setShowReplPass(!showReplPass)} style={eyeBtn}>{showReplPass ? <EyeOff size={16} /> : <Eye size={16} />}</button>
               </div>
             </div>
           </div>
-          <button onClick={handleDeploy} disabled={loading} style={deployBtn}>
-            {loading ? <Loader2 className="animate-spin" /> : <Zap size={20} fill="white" />}
-            {loading ? "PROCESSING..." : "DEPLOY CLUSTER"}
-          </button>
-        </div>
-        {/* MIDDLE COLUMN: ENGINE SETTINGS + RESULTS */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+          {/* ENGINE PARAMETERS MOVED HERE */}
           <div style={{ ...formCard, borderTop: '6px solid #6739B7' }}>
             <h3 style={{ ...cardTitle, color: '#6739B7' }}><Layers size={18} /> Engine: {formData.mariadb_version}</h3>
+            
+            <div style={{ marginBottom: '15px', paddingBottom: '10px', borderBottom: '1px dashed #d1c4e9' }}>
+              <RequiredLabel>wsrep_cluster_name</RequiredLabel>
+              <input name="wsrep_cluster_name" value={formData.wsrep_cluster_name} onChange={handleChange} style={inputStyle} />
+              
+              <RequiredLabel>wsrep_provider</RequiredLabel>
+              <select name="wsrep_provider" value={formData.wsrep_provider} onChange={handleChange} style={inputStyle}>
+                <option value="/usr/lib/galera/libgalera_smm.so">/usr/lib/galera/libgalera_smm.so</option>
+                <option value="/usr/lib64/galera/libgalera_smm.so">/usr/lib64/galera/libgalera_smm.so</option>
+              </select>
+            </div>
+
             {formData.mariadb_version === "10.5.16" && (
               <>
                 <label style={miniLabel}>wsrep_strict_ddl</label><input name="wsrep_strict_ddl" value={formData.wsrep_strict_ddl} onChange={handleChange} style={inputStyle} />
@@ -230,8 +238,17 @@ function App() {
                 <label style={miniLabel}>wsrep_gtid_domain_id</label><input name="wsrep_gtid_domain_id" value={formData.wsrep_gtid_domain_id} onChange={handleChange} style={inputStyle} />
               </div>
             )}
-            <div style={infoBox}><Info size={16} color="#6739B7" /><span>Optional settings optimized for this specific engine version.</span></div>
+            <div style={infoBox}><Info size={16} color="#6739B7" /><span>Settings optimized for this specific engine version.</span></div>
           </div>
+
+          <button onClick={handleDeploy} disabled={loading} style={deployBtn}>
+            {loading ? <Loader2 className="animate-spin" /> : <Zap size={20} fill="white" />}
+            {loading ? "PROCESSING..." : "DEPLOY CLUSTER"}
+          </button>
+        </div>
+
+        {/* MIDDLE COLUMN (HEALTH RESULTS) */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {report ? (
              <div style={reportContainer}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
@@ -241,32 +258,8 @@ function App() {
                         color: 'white', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold'
                     }}>{report.health_report.overall_status}</div>
                 </div>
-                {/* NEW MONITORING DASHBOARD BUTTON */}
-                <a 
-                  href={getGrafanaURL()} 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '10px',
-                    backgroundColor: '#f8961e',
-                    color: 'white',
-                    padding: '14px',
-                    borderRadius: '10px',
-                    textDecoration: 'none',
-                    fontWeight: 'bold',
-                    fontSize: '13px',
-                    marginBottom: '15px',
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                    transition: 'transform 0.2s'
-                  }}
-                  onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
-                  onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                >
-                  <Activity size={18} />
-                  OPEN MONITORING DASHBOARD
+                <a href={getGrafanaURL()} target="_blank" rel="noopener noreferrer" style={grafanaBtn}>
+                  <Activity size={18} /> OPEN MONITORING DASHBOARD
                 </a>
                 <div style={healthSection}>
                    <div style={sectionLabel}><Database size={14}/> Galera Cluster: {report.cluster_name}</div>
@@ -312,58 +305,28 @@ function App() {
           )}
           {error && <div style={errorBox}><strong>Alert:</strong> {error}</div>}
         </div>
-        {/* RIGHT COLUMN: ORCHESTRATION CONSOLE - EXTENDED TO END OF PAGE */}
+
+        {/* RIGHT COLUMN (CONSOLE) */}
         <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 140px)' }}>
           <div style={{ ...formCard, backgroundColor: '#0d1117', borderLeft: '4px solid #6739B7', height: '100%', display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h3 style={{ ...cardTitle, color: '#d1c4e9', margin: 0 }}><Terminal size={18} /> Deployment Console</h3>
-              <span style={{ 
-                fontSize: '10px', 
-                padding: '2px 8px', 
-                borderRadius: '10px', 
-                backgroundColor: streamStatus === "Connected" ? "#166534" : "#b91c1c",
-                color: 'white',
-                fontWeight: 'bold'
-              }}>
+              <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '10px', backgroundColor: streamStatus === "Connected" ? "#166534" : "#b91c1c", color: 'white', fontWeight: 'bold' }}>
                 {streamStatus.toUpperCase()}
               </span>
             </div>
-            <div 
-              ref={logContainerRef}
-              style={{ 
-                flex: 1, 
-                overflowY: 'auto', 
-                fontSize: '11px', 
-                fontFamily: '"Fira Code", monospace', 
-                color: '#a3be8c', 
-                backgroundColor: '#000',
-                padding: '12px',
-                borderRadius: '6px',
-                lineHeight: '1.4'
-              }}
-            >
+            <div ref={logContainerRef} style={consoleBox}>
               {logs.length === 0 ? (
                 <div style={{ color: '#4c566a', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   <span>Waiting for orchestration to begin...</span>
-                  {streamStatus !== "Connected" && (
-                    <span style={{ color: '#b91c1c', fontSize: '10px' }}>
-                      ⚠️ SSE Stream offline. Check backend host & firewall.
-                    </span>
-                  )}
+                  {streamStatus !== "Connected" && <span style={{ color: '#b91c1c', fontSize: '10px' }}>⚠️ SSE Stream offline.</span>}
                 </div>
               ) : (
                 logs.map((log, idx) => {
                   const isTask = log.includes('TASK [');
                   const isPlay = log.includes('PLAY [');
                   return (
-                    <div key={idx} style={{ 
-                      borderBottom: '1px solid #1a1a1a', 
-                      padding: '2px 0', 
-                      whiteSpace: 'pre-wrap',
-                      color: isTask ? '#58a6ff' : isPlay ? '#d29922' : '#a3be8c',
-                      fontWeight: (isTask || isPlay) ? 'bold' : 'normal',
-                      marginTop: isTask ? '8px' : '0'
-                    }}>{log}</div>
+                    <div key={idx} style={{ borderBottom: '1px solid #1a1a1a', padding: '2px 0', whiteSpace: 'pre-wrap', color: isTask ? '#58a6ff' : isPlay ? '#d29922' : '#a3be8c', fontWeight: (isTask || isPlay) ? 'bold' : 'normal', marginTop: isTask ? '8px' : '0' }}>{log}</div>
                   );
                 })
               )}
@@ -374,6 +337,7 @@ function App() {
     </div>
   );
 }
+
 // STYLES
 const formCard = { background: '#ffffff', padding: '20px', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' };
 const cardTitle = { margin: '0 0 16px 0', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '10px', color: '#512da8', fontWeight: '700' };
@@ -390,7 +354,9 @@ const healthSection = { backgroundColor: 'rgba(255,255,255,0.6)', padding: '12px
 const sectionLabel = { fontSize: '11px', fontWeight: 'bold', color: '#512da8', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px', textTransform: 'uppercase' };
 const healthRow = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid rgba(0,0,0,0.03)' };
 const emptyResults = { height: '300px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#9575cd', border: '2px dashed #d1c4e9', borderRadius: '16px', textAlign: 'center', padding: '20px' };
-const infoBox = { marginTop: '25px', padding: '12px', background: '#ede7f6', borderRadius: '10px', fontSize: '11px', color: '#512da8', display: 'flex', gap: '10px', alignItems: 'center' };
+const infoBox = { marginTop: '10px', padding: '12px', background: '#ede7f6', borderRadius: '10px', fontSize: '11px', color: '#512da8', display: 'flex', gap: '10px', alignItems: 'center' };
 const pill = (active) => ({ padding: '2px 6px', borderRadius: '4px', fontSize: '9px', fontWeight: 'bold', backgroundColor: active ? '#166534' : '#b91c1c', color: 'white' });
-export default App;
+const grafanaBtn = { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', backgroundColor: '#f8961e', color: 'white', padding: '14px', borderRadius: '10px', textDecoration: 'none', fontWeight: 'bold', fontSize: '13px', marginBottom: '15px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' };
+const consoleBox = { flex: 1, overflowY: 'auto', fontSize: '11px', fontFamily: '"Fira Code", monospace', color: '#a3be8c', backgroundColor: '#000', padding: '12px', borderRadius: '6px', lineHeight: '1.4' };
 
+export default App;

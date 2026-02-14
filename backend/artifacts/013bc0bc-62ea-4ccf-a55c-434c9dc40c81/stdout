@@ -1,0 +1,54 @@
+[1;35m[WARNING]: Found duplicate mapping key 'tasks'.[0m
+[1;35mOrigin: /home/ubuntu/harbour-master/backend/ansible/deploy_cluster.yml:12:3[0m
+[1;35m[0m
+[1;35m10       timeout: 300[0m
+[1;35m11[0m
+[1;35m12   tasks:[0m
+[1;35m     ^ column 3[0m
+[1;35m[0m
+[1;35mUsing last defined value only.[0m
+[1;35m[0m
+
+PLAY [Phase 1 - Prepare All Nodes] *********************************************
+
+TASK [Gathering Facts] *********************************************************
+[1;35m[WARNING]: Host 'db-node-01' is using the discovered Python interpreter at '/usr/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.[0m
+[0;32mok: [db-node-01][0m
+[1;35m[WARNING]: Host 'async-node' is using the discovered Python interpreter at '/usr/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.[0m
+[0;32mok: [async-node][0m
+
+TASK [Install basic utilities] *************************************************
+[0;32mok: [db-node-01][0m
+[0;32mok: [async-node][0m
+
+PLAY [Phase 1 - Prepare All Nodes] *********************************************
+
+TASK [Gathering Facts] *********************************************************
+[1;35m[WARNING]: Host 'db-node-02' is using the discovered Python interpreter at '/usr/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.[0m
+[0;32mok: [db-node-02][0m
+[1;35m[WARNING]: Host 'db-node-03' is using the discovered Python interpreter at '/usr/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.[0m
+[0;32mok: [db-node-03][0m
+
+TASK [Install basic utilities] *************************************************
+[0;32mok: [db-node-03][0m
+[0;32mok: [db-node-02][0m
+
+PLAY [Phase 1 - Prepare All Nodes] *********************************************
+
+TASK [Gathering Facts] *********************************************************
+[1;35m[WARNING]: Host 'lvs-node-2' is using the discovered Python interpreter at '/usr/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.[0m
+[0;32mok: [lvs-node-2][0m
+[1;35m[WARNING]: Host 'lvs-node-1' is using the discovered Python interpreter at '/usr/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.[0m
+[0;32mok: [lvs-node-1][0m
+
+TASK [Install basic utilities] *************************************************
+[0;32mok: [lvs-node-1][0m
+[0;32mok: [lvs-node-2][0m
+
+PLAY [Phase 1 - Prepare All Nodes] *********************************************
+
+TASK [Gathering Facts] *********************************************************
+[1;35m[WARNING]: Host 'monitor-node' is using the discovered Python interpreter at '/usr/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.[0m
+[0;32mok: [monitor-node][0m
+
+TASK [Install basic utilities] *************************************************

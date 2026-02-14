@@ -1,4 +1,4 @@
-async_ip: 192.168.64.197
+async_ip: 192.168.64.199
 bind_address: 0.0.0.0
 binlog_expire_logs_seconds: 604800
 binlog_format: ROW
@@ -32,7 +32,7 @@ lvs_ips:
 - 192.168.64.197
 lvs_vip: 192.168.64.150
 mariadb_version: '10.11'
-monitor_ip: 192.168.64.200
+monitor_ip: 192.168.64.201
 repl_password: ReplicaSecurePass123!
 repl_user: repl_user
 wsrep_cluster_address: gcomm://192.168.64.192,192.168.64.193,192.168.64.194
