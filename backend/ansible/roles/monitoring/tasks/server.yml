@@ -13,16 +13,25 @@
     url: https://apt.grafana.com/gpg.key
     dest: /etc/apt/keyrings/grafana.asc
     mode: '0644'
-- name: Add Grafana official APT repository
-  apt_repository:
-    repo: "deb [signed-by=/etc/apt/keyrings/grafana.asc] https://apt.grafana.com stable main"
-    state: present
-    filename: grafana
+- name: Add Grafana official APT repository (Low Memory Version)
+  shell: |
+    echo "deb [signed-by=/etc/apt/keyrings/grafana.asc] https://apt.grafana.com stable main" > /etc/apt/sources.list.d/grafana.list
+  become: yes
+
+- name: Update apt cache manually
+  shell: apt-get update
+  become: yes
+  register: apt_update
+  ignore_errors: yes
+
 - name: Install Prometheus and Grafana
   apt:
-    name: [prometheus, grafana, python3-requests]
-    state: latest
-    update_cache: yes
+    name:
+      - prometheus
+      - grafana
+    state: present
+  become: yes
+
 - name: Create Provisioning Directories
   file:
     path: "{{ item }}"

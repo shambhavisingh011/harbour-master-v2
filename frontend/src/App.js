@@ -13,11 +13,11 @@ function App() {
   const logContainerRef = useRef(null);
   const [formData, setFormData] = useState({
     mariadb_version: "10.11",
-    node1_ip: "192.168.64.120", node1_name: "db-node-01",
-    node2_ip: "192.168.64.121", node2_name: "db-node-02",
-    node3_ip: "192.168.64.122", node3_name: "db-node-03",
-    lvs1_ip: "192.168.64.123", lvs2_ip: "192.168.64.124",
-    async_ip: "192.168.64.125", monitor_ip: "192.168.64.119",
+    node1_ip: "192.168.64.192", node1_name: "db-node-01",
+    node2_ip: "192.168.64.193", node2_name: "db-node-02",
+    node3_ip: "192.168.64.194", node3_name: "db-node-03",
+    lvs1_ip: "192.168.64.196", lvs2_ip: "192.168.64.124",
+    async_ip: "192.168.64.197", monitor_ip: "192.168.64.200",
     lvs_vip: "192.168.64.150",
     wsrep_cluster_name: "Galera_Cluster", 
     wsrep_on: "ON",
@@ -35,7 +35,7 @@ function App() {
   useEffect(() => {
     let eventSource;
     const setupSSE = () => {
-      eventSource = new EventSource('http://192.168.64.118:8000/api/logs/stream');
+      eventSource = new EventSource('http://192.168.64.191:8000/api/logs/stream');
       eventSource.onopen = () => {
         setStreamStatus("Connected");
         console.log("✅ SSE Log Stream Connected");
@@ -101,7 +101,7 @@ function App() {
       wsrep_gtid_domain_id: parseInt(formData.wsrep_gtid_domain_id)
     };
     try {
-      const response = await fetch('http://192.168.64.118:8000/deploy', {
+      const response = await fetch('http://192.168.64.191:8000/deploy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)

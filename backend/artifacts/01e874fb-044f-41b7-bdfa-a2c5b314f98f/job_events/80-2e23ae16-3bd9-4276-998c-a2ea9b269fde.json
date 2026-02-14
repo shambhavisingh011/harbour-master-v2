@@ -1,0 +1,1 @@
+{"event": "verbose", "uuid": "2e23ae16-3bd9-4276-998c-a2ea9b269fde", "counter": 80, "stdout": "\u001b[0;35m             ^ column 11\u001b[0m", "start_line": 72, "end_line": 73, "runner_ident": "01e874fb-044f-41b7-bdfa-a2c5b314f98f", "created": "2026-02-14T11:12:49.019794+00:00"}

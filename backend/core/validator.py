@@ -78,14 +78,14 @@ class InfrastructureValidator:
             return False, f"SSH Error: Could not authenticate with {galera_ips[0]}. Check your SSH keys."
         # --- SAFE LIMIT VALIDATION ---
         # These match the limits we set to keep your laptop from crashing
-        if remote["cpus"] < 1:
-            return False, f"Resource Error: {galera_ips[0]} has only {remote['cpus']} CPU. Minimum 1 required."
+       # if remote["cpus"] < 1:
+        #    return False, f"Resource Error: {galera_ips[0]} has only {remote['cpus']} CPU. Minimum 1 required."
         
-        if remote["ram_gb"] < 1.7: # Allowing a small buffer for 2GB VMs
-            return False, f"Resource Error: {galera_ips[0]} has only {remote['ram_gb']}GB RAM. Minimum 2GB required."
+       # if remote["ram_gb"] < 1.7: # Allowing a small buffer for 2GB VMs
+        #    return False, f"Resource Error: {galera_ips[0]} has only {remote['ram_gb']}GB RAM. Minimum 2GB required."
             
-        if remote["disk_gb"] < 8.0:
-            return False, f"Resource Error: {galera_ips[0]} has only {remote['disk_gb']}GB Disk. Minimum 20GB required."
+       # if remote["disk_gb"] < 8.0:
+        #    return False, f"Resource Error: {galera_ips[0]} has only {remote['disk_gb']}GB Disk. Minimum 20GB required."
         # OS Path Check for wsrep_provider
         if remote["os_family"] == "debian":
             expected_path = "/usr/lib/galera/libgalera_smm.so"

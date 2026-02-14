@@ -3,7 +3,7 @@ from typing import List, Optional
 
 class GaleraNodeConfig(BaseModel):
     """Configuration for an individual Galera Cluster node."""
-       ip: str = Field(..., description="IPv4 address of the node")
+    ip: str = Field(..., description="IPv4 address of the node")
     node_name: str = Field(..., description="Unique name for wsrep_node_name")
     server_id: Optional[int] = Field(0, description="MySQL server-id (Auto-calculated if 0)")
 class ClusterDeploymentRequest(BaseModel):

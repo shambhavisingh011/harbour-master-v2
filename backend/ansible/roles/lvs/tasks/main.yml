@@ -1,17 +1,45 @@
 ---
-- name: Install LVS and Keepalived
+# 1. Install Keepalived and Ipvsadm
+- name: Install LVS and Keepalived dependencies
   apt:
-    name: [keepalived, ipvsadm]
+    name:
+      - keepalived
+      - ipvsadm
     state: present
-- name: Enable IP Forwarding
+    update_cache: yes
+  become: yes
+
+# 2. Enable IP Forwarding (Crucial for LVS)
+- name: Enable IPv4 forwarding
   sysctl:
     name: net.ipv4.ip_forward
     value: '1'
     state: present
     reload: yes
-- name: Deploy Keepalived Configuration
+  become: yes
+
+# 3. ADD THE ROUTING LOGIC (The part you asked for)
+# This allows the LVS node to talk to the dummy0 interface on the DB nodes
+- name: Add route to HCIP subnet for health checks
+  shell: "ip route add {{ hcip_value | default('10.0.0.100') }}/32 dev {{ ansible_default_ipv4.interface }} || true"
+  become: yes
+
+# 4. Deploy Keepalived Configuration
+- name: Deploy Keepalived configuration from template
   template:
     src: keepalived.conf.j2
     dest: /etc/keepalived/keepalived.conf
-  notify: Restart Keepalived
+    owner: root
+    group: root
+    mode: '0644'
+  become: yes
+  register: lvs_config
 
+# 5. Restart Keepalived
+- name: Restart and Enable Keepalived
+  service:
+    name: keepalived
+    state: restarted
+    enabled: yes
+  become: yes
+  when: lvs_config.changed

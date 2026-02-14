@@ -1,29 +1,60 @@
 ---
+# 0. PRE-REQUISITE: INSTALL MARIADB SERVER
+# Since the service is missing, we must ensure the package is installed first.
+- name: Ensure MariaDB Server is installed on Async Node
+  apt:
+    name: 
+      - mariadb-server
+      - python3-pymysql
+    state: present
+    update_cache: yes
+  become: yes
+
 # 1. FIX PERMISSIONS ON THE GALERA MASTER
-# This "reaches over" to the Galera Master to authorize the Async Node's IP
 - name: Ensure Replication User has access from Async Node IP
   community.mysql.mysql_user:
     name: "{{ repl_user }}"
     password: "{{ repl_password }}"
-    host: "{{ ansible_host }}" # The IP of the async-node
+    host: "{{ ansible_host }}"
     priv: "*.*:REPLICATION SLAVE"
     state: present
     login_unix_socket: /var/run/mysqld/mysqld.sock
   delegate_to: "{{ groups['galera'][2] }}" 
   become: yes
+
 # 2. APPLY CONFIGURATION
+- name: Ensure MariaDB config directory exists
+  file:
+    path: /etc/mysql/mariadb.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  become: yes
+
 - name: Apply Standalone Replica Configuration
   template:
     src: replica.cnf.j2
     dest: /etc/mysql/mariadb.conf.d/70-replica.cnf
   become: yes
   register: replica_conf
+
 - name: Restart MariaDB to apply gtid_domain_id and server-id
-  service:
+  systemd:
     name: mariadb
     state: restarted
+    enabled: yes
+    daemon_reload: yes
   become: yes
   when: replica_conf.changed
+
+- name: Wait for MariaDB to come back online
+  wait_for:
+    host: 127.0.0.1
+    port: 3306
+    timeout: 30
+  when: replica_conf.changed
+
 # 3. THE "NUCLEAR" RESET
 - name: Hard Reset Slave State for GTID alignment
   shell: |
@@ -32,6 +63,7 @@
     mariadb -e "RESET MASTER;"
     mariadb -e "SET GLOBAL gtid_slave_pos = '';"
   become: yes
+
 # 4. CAPTURE MASTER POSITION
 - name: Get current Master GTID Position
   shell: "mariadb -N -s -e 'SELECT @@gtid_binlog_pos;'"
@@ -39,11 +71,13 @@
   register: master_gtid_raw
   become: yes
   changed_when: false
+
 # 5. SYNC SLAVE TO MASTER POSITION
 - name: Align Slave GTID position with Master
   shell: "mariadb -e \"SET GLOBAL gtid_slave_pos = '{{ master_gtid_raw.stdout | trim }}';\""
   become: yes
   when: master_gtid_raw.stdout | length > 0
+
 # 6. CONFIGURE AND START
 - name: Configure Master Handshake
   community.mysql.mysql_replication:
@@ -54,8 +88,7 @@
     primary_use_gtid: replica_pos
     login_unix_socket: /var/run/mysqld/mysqld.sock
   become: yes
-# --- UPDATED: DYNAMIC ROOT ACCESS TASK ---
-# This uses a fallback to ensure the dictionary error doesn't stop the play
+
 - name: Allow Root Access on Async Node for Health Checker
   community.mysql.mysql_user:
     name: root
@@ -69,11 +102,13 @@
     - "127.0.0.1"
     - "{{ ansible_env.SSH_CLIENT.split(' ')[0] if (ansible_env.SSH_CLIENT is defined) else '192.168.64.118' }}"
   become: yes
+
 - name: Start Replication
   community.mysql.mysql_replication:
     mode: startreplica
     login_unix_socket: /var/run/mysqld/mysqld.sock
   become: yes
+
 # 7. FINAL VERIFICATION
 - name: Verify Replication Status
   shell: "mariadb -e 'SHOW REPLICA STATUS\\G' | grep -E 'Slave_(IO|SQL)_Running|Seconds_Behind_Master|Last_IO_Error'"
@@ -81,9 +116,9 @@
   become: yes
   changed_when: false
   until: '"Slave_IO_Running: Yes" in final_check.stdout'
-  retries: 5
+  retries: 15
   delay: 5
+
 - name: Display Replication Status
   debug:
     var: final_check.stdout_lines
-

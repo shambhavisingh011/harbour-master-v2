@@ -1,34 +1,45 @@
 global_defs {
     router_id {{ inventory_hostname }}
 }
+
 vrrp_instance VI_1 {
     state {{ 'MASTER' if inventory_hostname == groups['lvs'][0] else 'BACKUP' }}
-    # This automatically finds the correct interface (enp0s1, ens3, etc.)
     interface {{ ansible_default_ipv4.interface }}
     virtual_router_id 51
     priority {{ 100 if inventory_hostname == groups['lvs'][0] else 90 }}
     advert_int 1
     authentication {
         auth_type PASS
-        # Keepalived only allows max 8 characters for the password
         auth_pass harbor8
     }
     virtual_ipaddress {
         {{ lvs_vip }}
     }
 }
+
+# Virtual Server for MariaDB Galera Cluster
 virtual_server {{ lvs_vip }} 3306 {
-    delay_loop 6
-    lb_algo rr
+    delay_loop 5
+    # wrr allows us to manage weights, though with HCIP, only one node will respond
+    lb_algo wrr
     lb_kind DR
     protocol TCP
+
     {% for node in galera_nodes %}
+    # Real Server: {{ node.node_name }}
     real_server {{ node.ip }} 3306 {
-        weight 1
-        TCP_CHECK {
-            connect_timeout 3
+        weight 100
+        
+        # The Secret Sauce: LVS pings the HCIP on the backend dummy interface.
+        # If the ping fails, Keepalived assumes this node is NOT the Master.
+        MISC_CHECK {
+            # We use 'fping' or 'ping'. -c 1 (one packet), -W 1 (1 sec timeout)
+            misc_path "ping -c 1 -W 1 {{ hcip_value | default('10.0.0.100') }}"
+            misc_timeout 2
+            
+            # If the check fails, weight is set to 0 (node removed from pool)
+            # If it passes, weight stays at 100
         }
     }
     {% endfor %}
 }
-
