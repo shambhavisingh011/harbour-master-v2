@@ -1,0 +1,1 @@
+{"event": "verbose", "uuid": "3ecb7494-6846-46ee-8f1d-558ae44ccc09", "counter": 1, "stdout": "\u001b[0;31m[ERROR]: YAML parsing failed: While parsing a block mapping did not find expected key.\u001b[0m", "start_line": 0, "end_line": 1, "runner_ident": "b4adba13-8fa6-4dd8-8793-caa617eb910b", "created": "2026-02-14T20:24:37.216162+00:00"}

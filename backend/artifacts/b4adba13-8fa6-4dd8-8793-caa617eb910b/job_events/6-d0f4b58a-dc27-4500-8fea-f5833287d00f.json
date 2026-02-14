@@ -1,0 +1,1 @@
+{"event": "verbose", "uuid": "d0f4b58a-dc27-4500-8fea-f5833287d00f", "counter": 6, "stdout": "\u001b[0;31m87 - name: [Self-Healing] Check if Node is stuck in Initialized state\u001b[0m", "start_line": 5, "end_line": 6, "runner_ident": "b4adba13-8fa6-4dd8-8793-caa617eb910b", "created": "2026-02-14T20:24:37.217642+00:00"}

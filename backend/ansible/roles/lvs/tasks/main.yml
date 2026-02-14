@@ -42,4 +42,3 @@
     state: restarted
     enabled: yes
   become: yes
-  when: lvs_config.changed

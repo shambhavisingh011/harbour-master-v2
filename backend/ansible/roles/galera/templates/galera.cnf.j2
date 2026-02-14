@@ -33,5 +33,12 @@ innodb_buffer_pool_instances = {{ innodb_buffer_pool_instances }}
 wsrep_slave_threads         = {{ wsrep_slave_threads }}
 innodb_undo_tablespaces     = {{ innodb_undo_tablespaces }}
 wsrep_gtid_domain_id        = {{ wsrep_gtid_domain_id }}
+# Automatically recover the cluster state after a crash
+# pc.recovery=true is the default, but explicitly setting it ensures stability
+wsrep_provider_options="pc.recovery=1;gcache.recover=yes"
+
+# Increase the number of retries for joining nodes to prevent 
+# "split-brain" on slow networks or heavy SSTs
+wsrep_retry_autocommit=3
 {% endif %}
 

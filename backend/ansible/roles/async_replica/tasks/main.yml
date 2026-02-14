@@ -1,5 +1,5 @@
 ---
-# 0. PRE-REQUISITE: INSTALL MARIADB SERVER
+# 0. PRE-REQUISITE: INSTALL & CLUSTER READINESS
 - name: Ensure MariaDB Server is installed on Async Node
   apt:
     name: 
@@ -8,6 +8,33 @@
     state: present
     update_cache: yes
   become: yes
+
+- name: Identify Healthy Galera Nodes
+  shell: "mariadb -u root -p'{{ wsrep_sst_auth.split(':')[1] }}' -N -s -e \"SHOW STATUS LIKE 'wsrep_local_state_comment';\""
+  become: yes
+  delegate_to: "{{ item }}"
+  loop: "{{ groups['galera'] }}"
+  register: galera_health_results
+  ignore_errors: yes
+  changed_when: false
+
+- name: Set Active Galera Master Fact
+  set_fact:
+    # This filter finds the first node that returned 'Synced' in the loop above
+    active_galera_master: "{{ (galera_health_results.results | selectattr('stdout', 'defined') | selectattr('stdout', 'search', 'Synced') | first).item }}"
+  run_once: true
+
+- name: Check current Replication Status on Async Node
+  shell: "mariadb -u root -p'{{ wsrep_sst_auth.split(':')[1] }}' -e 'SHOW REPLICA STATUS\\G'"
+  register: slave_status_raw
+  ignore_errors: yes
+  become: yes
+  changed_when: false
+
+- name: Set Replication Health Fact
+  set_fact:
+    is_replication_healthy: "{{ 'Slave_IO_Running: Yes' in slave_status_raw.stdout and 'Slave_SQL_Running: Yes' in slave_status_raw.stdout }}"
+  when: slave_status_raw.rc == 0
 
 # 1. FIX PERMISSIONS ON THE GALERA MASTER
 - name: Ensure Replication User has access from Async Node IP
@@ -21,13 +48,11 @@
     login_password: "{{ wsrep_sst_auth.split(':')[1] }}"
     login_unix_socket: /var/run/mysqld/mysqld.sock
     check_implicit_admin: yes
-  delegate_to: "{{ groups['galera'][0] }}"
-  run_once: true
   become: yes
-  register: repl_user_setup
-  until: repl_user_setup is success
-  retries: 20
-  delay: 10
+  # Dynamically delegate to the node we confirmed is Synced
+  delegate_to: "{{ active_galera_master }}"
+  run_once: true
+  when: not (is_replication_healthy | default(false))
 
 # 2. APPLY CONFIGURATION
 - name: Ensure MariaDB config directory exists
@@ -46,79 +71,54 @@
   become: yes
   register: replica_conf
 
-- name: Restart MariaDB to apply gtid_domain_id and server-id
+- name: Restart MariaDB to apply configs
   systemd:
     name: mariadb
     state: restarted
-    enabled: yes
-    daemon_reload: yes
   become: yes
-  when: replica_conf.changed
-
-- name: Wait for MariaDB to come back online
-  wait_for:
-    host: 127.0.0.1
-    port: 3306
-    timeout: 30
   when: replica_conf.changed
 
 # 3. THE "NUCLEAR" RESET
 - name: Hard Reset Slave State for GTID alignment
   shell: |
-    mariadb -e "STOP REPLICA;"
-    mariadb -e "RESET REPLICA ALL;"
-    mariadb -e "RESET MASTER;"
-    mariadb -e "SET GLOBAL gtid_slave_pos = '';"
+    mariadb -u root -p'{{ wsrep_sst_auth.split(":")[1] }}' -e "STOP REPLICA;"
+    mariadb -u root -p'{{ wsrep_sst_auth.split(":")[1] }}' -e "RESET REPLICA ALL;"
+    mariadb -u root -p'{{ wsrep_sst_auth.split(":")[1] }}' -e "SET GLOBAL gtid_slave_pos = '';"
   become: yes
+  when: not (is_replication_healthy | default(false))
 
 # 4. CAPTURE MASTER POSITION
-- name: Get current Master GTID Position
+- name: Get Master GTID Position
   shell: "mariadb -u root -p'{{ wsrep_sst_auth.split(':')[1] }}' -N -s -e 'SELECT @@gtid_binlog_pos;'"
-  delegate_to: "{{ groups['galera'][0] }}"
-  register: master_gtid_raw
-  until: master_gtid_raw.rc == 0
-  retries: 20
-  delay: 10
   become: yes
-  changed_when: false
-  no_log: true
+  delegate_to: "{{ active_galera_master }}"
+  register: master_gtid
+  run_once: true
+  when: not (is_replication_healthy | default(false))
 
-# 5. SYNC SLAVE TO MASTER POSITION
-- name: Align Slave GTID position with Master
-  shell: "mariadb -e \"SET GLOBAL gtid_slave_pos = '{{ master_gtid_raw.stdout | trim }}';\""
+# 5. SYNC SLAVE POSITION
+- name: Align Slave GTID position
+  shell: "mariadb -u root -p'{{ wsrep_sst_auth.split(':')[1] }}' -e \"SET GLOBAL gtid_slave_pos = '{{ master_gtid.stdout | trim }}';\""
   become: yes
-  when: master_gtid_raw.stdout | length > 0
+  when: 
+    - not (is_replication_healthy | default(false))
+    - master_gtid is defined and master_gtid.rc == 0
 
 # 6. CONFIGURE AND START
+
 - name: Configure Master Handshake
   community.mysql.mysql_replication:
     mode: changeprimary
-    primary_host: "{{ hostvars[groups['galera'][0]]['ansible_host'] }}"
+    # Connect the slave specifically to the healthy master we found
+    primary_host: "{{ hostvars[active_galera_master]['ansible_host'] }}"
     primary_user: "{{ repl_user }}"
     primary_password: "{{ repl_password }}"
     primary_use_gtid: replica_pos
     login_user: root
     login_password: "{{ wsrep_sst_auth.split(':')[1] }}"
     login_unix_socket: /var/run/mysqld/mysqld.sock
-    check_implicit_admin: yes
   become: yes
-
-- name: Allow Root Access on Async Node for Health Checker
-  community.mysql.mysql_user:
-    name: root
-    host: "{{ item }}"
-    password: "{{ wsrep_sst_auth.split(':')[1] }}"
-    priv: "*.*:ALL,GRANT"
-    state: present
-    login_user: root
-    login_password: "{{ wsrep_sst_auth.split(':')[1] }}"
-    login_unix_socket: /var/run/mysqld/mysqld.sock
-    check_implicit_admin: yes
-  loop:
-    - "%"
-    - "127.0.0.1"
-    - "localhost"
-  become: yes
+  when: not (is_replication_healthy | default(false))
 
 - name: Start Replication
   community.mysql.mysql_replication:
@@ -126,27 +126,14 @@
     login_user: root
     login_password: "{{ wsrep_sst_auth.split(':')[1] }}"
     login_unix_socket: /var/run/mysqld/mysqld.sock
-    check_implicit_admin: yes
   become: yes
+  when: not (is_replication_healthy | default(false))
 
 # 7. FINAL VERIFICATION
 - name: Verify Replication Status
-  shell: "mariadb -u root -p'{{ wsrep_sst_auth.split(':')[1] }}' -e 'SHOW REPLICA STATUS\\G' | grep -E 'Slave_(IO|SQL)_Running|Seconds_Behind_Master|Last_IO_Error'"
+  shell: "mariadb -u root -p'{{ wsrep_sst_auth.split(':')[1] }}' -e 'SHOW REPLICA STATUS\\G'"
   register: final_check
   become: yes
-  changed_when: false
-  until: '"Slave_IO_Running: Yes" in final_check.stdout'
+  until: '"Slave_IO_Running: Yes" in final_check.stdout and "Slave_SQL_Running: Yes" in final_check.stdout'
   retries: 15
-  delay: 5
-
-- name: Force skip initial replication errors if any
-  shell: |
-    mariadb -u root -p'{{ wsrep_sst_auth.split(':')[1] }}' -e "STOP SLAVE;"
-    mariadb -u root -p'{{ wsrep_sst_auth.split(':')[1] }}' -e "SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 1;"
-    mariadb -u root -p'{{ wsrep_sst_auth.split(':')[1] }}' -e "START SLAVE;"
-  become: yes
-  when: "final_check.stdout is search('Slave_SQL_Running: No')"
-
-- name: Display Replication Status
-  debug:
-    var: final_check.stdout_lines
+  delay: 10

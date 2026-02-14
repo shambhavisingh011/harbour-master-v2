@@ -1,6 +1,6 @@
 ---
 # 1. Install Software & Dependencies
-- name: Install MariaDB Server and Galera dependencies
+- name: "Install MariaDB Server and Galera dependencies"
   apt:
     name:
       - mariadb-server
@@ -14,21 +14,21 @@
   become: yes
 
 # 2. Prevent Standalone Conflict
-- name: Stop MariaDB to prevent standalone mode conflicts
+- name: "Stop MariaDB to prevent standalone mode conflicts"
   service:
     name: mariadb
     state: stopped
   become: yes
 
-- name: Disable default bind-address in 50-server.cnf
+- name: "Disable default bind-address in 50-server.cnf"
   lineinfile:
     path: /etc/mysql/mariadb.conf.d/50-server.cnf
     regexp: '^bind-address'
-    line: '#bind-address = 127.0.0.1'
+    line: '#bind-address = 0.0.0.0'
   become: yes
 
 # 3. Configure Node
-- name: Deploy Galera Configuration
+- name: "Deploy Galera Configuration"
   template:
     src: galera.cnf.j2
     dest: /etc/mysql/mariadb.conf.d/60-galera.cnf
@@ -39,52 +39,39 @@
   register: config_deployed
 
 # 4. Initialization & Bootstrap Preparation
-- name: Initialize MariaDB data directory if empty
+- name: "Initialize MariaDB data directory if empty"
   command: mariadb-install-db --user=mysql --basedir=/usr --datadir=/var/lib/mysql
   args:
     creates: /var/lib/mysql/mysql
   become: yes
 
-- name: Check if grastate.dat exists
+- name: "Check if grastate.dat exists"
   stat:
     path: /var/lib/mysql/grastate.dat
   register: grastate_file
 
 # 5. Handle Cluster Bootstrap logic (Primary Node)
-- name: Bootstrap logic for Primary Node (Node 01)
+- name: "Bootstrap logic for Primary Node (Node 01)"
   block:
-    - name: Set safe_to_bootstrap flag in grastate.dat
+    - name: "Set safe_to_bootstrap flag in grastate.dat"
       lineinfile:
         path: /var/lib/mysql/grastate.dat
         regexp: '^safe_to_bootstrap: 0'
         line: 'safe_to_bootstrap: 1'
       when: grastate_file.stat.exists
 
-    - name: Execute Galera New Cluster command
+    - name: "Execute Galera New Cluster command"
       command: galera_new_cluster
 
-    - name: Wait for Primary Node to be ready
+    - name: "Wait for Primary Node to be ready"
       wait_for:
         port: 3306
         timeout: 60
-
-    - name: Create SST User for replication
-      community.mysql.mysql_user:
-        name: "{{ wsrep_sst_auth.split(':')[0] }}"
-        password: "{{ wsrep_sst_auth.split(':')[1] }}"
-        priv: "*.*:ALL"
-        state: present
-        host: "%"
-        login_user: root
-        login_password: "{{ wsrep_sst_auth.split(':')[1] }}"
-        login_unix_socket: /var/run/mysqld/mysqld.sock
-        check_implicit_admin: yes
-      no_log: true
   become: yes
   when: inventory_hostname == groups['galera'][0]
 
 # 6. Join Secondary Nodes
-- name: Join Secondary Nodes to Cluster
+- name: "Join Secondary Nodes to Cluster"
   service:
     name: mariadb
     state: started
@@ -96,49 +83,77 @@
   retries: 5
   delay: 10
 
-# 7. Verification (Handles password lock-out during sync)
-- name: Wait for local Galera node to be Synced and ready for SQL
-  shell: >
-    mariadb -u root -p'{{ wsrep_sst_auth.split(":")[1] }}' 
-    -e "SHOW STATUS LIKE 'wsrep_local_state_comment';" | grep 'Synced'
+# 7. AUTOMATED HEALTH CHECK & SELF-HEALING
+- name: "[Self-Healing] Check MariaDB Service and Cluster State"
+  shell: |
+    if ! systemctl is-active --quiet mariadb; then
+      echo "OFFLINE"
+    else
+      mariadb -u root -p'{{ wsrep_sst_auth.split(":")[1] }}' -N -s -e "SHOW STATUS LIKE 'wsrep_local_state_comment';" | awk '{print $2}' || echo "LOCKED"
+    fi
   become: yes
-  register: wait_for_sync
-  until: wait_for_sync.rc == 0
-  retries: 60
+  register: node_status_result
+  changed_when: false
+  ignore_errors: yes
+
+- name: "[Self-Healing] Restart MariaDB if Offline or stuck in Initialized"
+  systemd:
+    name: mariadb
+    state: restarted
+  become: yes
+  when: 
+    - inventory_hostname != groups['galera'][0]
+    - (node_status_result.stdout == "OFFLINE" or 
+       node_status_result.stdout == "Initialized" or 
+       node_status_result.stdout == "" or
+       node_status_result.stdout == "LOCKED")
+
+- name: "[Self-Healing] Emergency - Force Primary Component on Node 1"
+  shell: |
+    mariadb -u root -p'{{ wsrep_sst_auth.split(":")[1] }}' -e "SET GLOBAL wsrep_provider_options='pc.bootstrap=YES';"
+  become: yes
+  # If Node 1 is up but others can't join it because it's 'non-primary', force it to be primary.
+  when: 
+    - inventory_hostname == groups['galera'][0]
+    - (node_status_result.stdout == "Initialized" or node_status_result.stdout == "")
+
+- name: "[Self-Healing] Wait for Node to finish IST/SST and Sync"
+  shell: |
+    mariadb -u root -p'{{ wsrep_sst_auth.split(":")[1] }}' -N -s -e "SHOW STATUS LIKE 'wsrep_local_state_comment';"
+  become: yes
+  register: sync_check
+  until: '"Synced" in sync_check.stdout'
+  retries: 30
   delay: 10
   changed_when: false
-  no_log: true
 
-- name: Ensure MariaDB is accepting local connections
+- name: "Final Verification of Cluster Connectivity"
   command: >
     mariadb -u root -p'{{ wsrep_sst_auth.split(":")[1] }}' -e "SELECT 1;"
   become: yes
   register: db_ready
   until: db_ready.rc == 0
-  retries: 20
+  retries: 10
   delay: 5
   no_log: true
 
 # 8. SINGLE-WRITER HCIP LOGIC
-- name: Ensure dummy network module is loaded
+- name: "Ensure dummy network module is loaded"
   modprobe:
     name: dummy
     state: present
   become: yes
 
-- name: Create dummy0 network interface
+- name: "Create dummy0 network interface"
   shell: "ip link add dummy0 type dummy || true"
   become: yes
 
-
-
-- name: Deploy HCIP Management Script
+- name: "Deploy HCIP Management Script"
   copy:
     dest: /usr/local/bin/galera_hcip_manager.sh
     mode: '0755'
     content: |
       #!/bin/bash
-      # Managed by Harbor Master
       HCIP="{{ lvs_vip }}"
       PASS="{{ wsrep_sst_auth.split(':')[1] }}"
       
@@ -156,19 +171,33 @@
       fi
   become: yes
 
-- name: Run HCIP Manager to initialize state
+- name: "Run HCIP Manager to initialize state"
   command: /usr/local/bin/galera_hcip_manager.sh
   become: yes
 
-- name: Add HCIP Manager to Crontab for persistence
+- name: "Add HCIP Manager to Crontab for persistence"
   cron:
     name: "Galera HCIP Monitor"
     minute: "*"
     job: "/usr/local/bin/galera_hcip_manager.sh"
   become: yes
 
-# 9. Users & Access Management (No delegation to avoid donor locking)
-- name: Create Replication User for Async Node
+# 9. Users & Access Management
+- name: "Create SST User for replication"
+  community.mysql.mysql_user:
+    name: "{{ wsrep_sst_auth.split(':')[0] }}"
+    password: "{{ wsrep_sst_auth.split(':')[1] }}"
+    priv: "*.*:ALL"
+    state: present
+    host: "%"
+    login_user: root
+    login_password: "{{ wsrep_sst_auth.split(':')[1] }}"
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+    check_implicit_admin: yes
+  become: yes
+  run_once: true
+
+- name: "Create Replication User for Async Node"
   community.mysql.mysql_user:
     name: "{{ repl_user }}"
     password: "{{ repl_password }}"
@@ -183,7 +212,7 @@
   become: yes
   run_once: true
 
-- name: Allow Root Access from Remote Network
+- name: "Allow Root Access from Remote Network"
   community.mysql.mysql_user:
     name: root
     host: "{{ item }}"

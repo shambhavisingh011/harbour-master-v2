@@ -8,17 +8,36 @@
     state: present
     update_cache: yes
   become: yes
+
+- name: "[Gatekeeper] Wait for MariaDB to be Synced before creating users"
+  shell: |
+    mariadb -u root -p'{{ wsrep_sst_auth.split(":")[1] }}' -N -s -e "SHOW STATUS LIKE 'wsrep_local_state_comment';"
+  become: yes
+  register: monitor_sync_check
+  # Only run this on Galera nodes, not the Async node
+  when: inventory_hostname in groups['galera']
+  until: '"Synced" in monitor_sync_check.stdout'
+  retries: 15
+  delay: 10
+  changed_when: false
+
 - name: Create MariaDB Exporter User
   community.mysql.mysql_user:
     name: "exporter"
     password: "{{ exporter_password }}"
     priv: "*.*:PROCESS,REPLICATION CLIENT,SELECT"
     state: present
-    # This makes the underlying SQL 'CREATE USER IF NOT EXISTS'
     column_case_sensitive: false 
+    # --- FIX FOR IDEMPOTENCY ---
+    login_user: root
+    login_password: "{{ wsrep_sst_auth.split(':')[1] }}"
     login_unix_socket: /var/run/mysqld/mysqld.sock
+    check_implicit_admin: yes
+    # ---------------------------
   become: yes
-  when: inventory_hostname in groups['galera'] or inventory_hostname in groups['async']
+  # Apply to Galera nodes and the Async node
+  when: inventory_hostname in (groups['galera'] + groups['async'] | default([]))
+
 - name: Configure MySQL Exporter Auth
   copy:
     dest: /etc/mysql/exporter.cnf
@@ -31,15 +50,18 @@
       password={{ exporter_password }}
       host=localhost
   become: yes
-  when: inventory_hostname in groups['galera'] or inventory_hostname in groups['async']
+  register: exporter_cfg
+  when: inventory_hostname in (groups['galera'] + groups['async'] | default([]))
+
 - name: Set MySQL Exporter Flags
   lineinfile:
     path: /etc/default/prometheus-mysqld-exporter
     regexp: '^ARGS='
-    # Ensure the path matches the 'dest' in the previous task
     line: 'ARGS="--config.my-cnf=/etc/mysql/exporter.cnf --web.listen-address=:9104"'
   become: yes
-  when: inventory_hostname in groups['galera'] or inventory_hostname in groups['async']
+  register: exporter_flags
+  when: inventory_hostname in (groups['galera'] + groups['async'] | default([]))
+
 - name: Restart and Enable Monitoring Agents
   systemd:
     name: "{{ item }}"
@@ -50,12 +72,15 @@
   loop:
     - prometheus-node-exporter
     - prometheus-mysqld-exporter
-  when: inventory_hostname in groups['galera'] or inventory_hostname in groups['async']
+  # Only restart if the config actually changed to avoid unnecessary downtime
+  when: 
+    - inventory_hostname in (groups['galera'] + groups['async'] | default([]))
+    - exporter_cfg.changed or exporter_flags.changed
+
 - name: Ensure Node Exporter is active on non-DB nodes
   systemd:
     name: prometheus-node-exporter
     state: started
     enabled: yes
   become: yes
-  when: inventory_hostname not in groups['galera'] and inventory_hostname not in groups['async']
-
+  when: inventory_hostname not in (groups['galera'] + groups['async'] | default([]))
