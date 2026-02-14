@@ -1,0 +1,17 @@
+[0;31m[ERROR]: YAML parsing failed: Colons in unquoted values must be followed by a non-space character.[0m
+[0;31mOrigin: /home/ubuntu/harbour-master/backend/ansible/roles/async_replica/tasks/main.yml:119:56[0m
+[0;31m[0m
+[0;31m117   become: yes[0m
+[0;31m118   # Only run this if the SQL thread is actually down[0m
+[0;31m119   when: final_check.stdout is search('Slave_SQL_Running: No')[0m
+[0;31m                                                           ^ column 56[0m
+[0;31m[0m
+[0;31m[0m
+[0;31mFor example:[0m
+[0;31m[0m
+[0;31m    raw: echo 'name: ansible'[0m
+[0;31m[0m
+[0;31mShould be:[0m
+[0;31m[0m
+[0;31m    raw: "echo 'name: ansible'"[0m
+[0;31m[0m

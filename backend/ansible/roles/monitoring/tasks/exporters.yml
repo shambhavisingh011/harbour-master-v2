@@ -12,21 +12,13 @@
   community.mysql.mysql_user:
     name: "exporter"
     password: "{{ exporter_password }}"
-    # Essential privileges for Galera and Async monitoring
-    priv: "*.*:PROCESS,REPLICATION CLIENT,SELECT,SLAVE MONITOR"
-    host: "{{ item }}"
+    priv: "*.*:PROCESS,REPLICATION CLIENT,SELECT"
     state: present
-    plugin: mysql_native_password
+    # This makes the underlying SQL 'CREATE USER IF NOT EXISTS'
+    column_case_sensitive: false 
     login_unix_socket: /var/run/mysqld/mysqld.sock
   become: yes
-  loop:
-    - "%"
-    - "localhost"
-    - "127.0.0.1"
   when: inventory_hostname in groups['galera'] or inventory_hostname in groups['async']
-  # Galera replicates users; ignoring errors ensures the playbook continues if user exists
-  ignore_errors: yes
-  no_log: true
 - name: Configure MySQL Exporter Auth
   copy:
     dest: /etc/mysql/exporter.cnf

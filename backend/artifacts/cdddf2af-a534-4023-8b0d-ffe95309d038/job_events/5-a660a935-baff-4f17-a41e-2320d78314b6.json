@@ -1,0 +1,1 @@
+{"event": "verbose", "uuid": "a660a935-baff-4f17-a41e-2320d78314b6", "counter": 5, "stdout": "\u001b[0;31m118   # Only run this if the SQL thread is actually down\u001b[0m", "start_line": 4, "end_line": 5, "runner_ident": "cdddf2af-a534-4023-8b0d-ffe95309d038", "created": "2026-02-14T17:06:01.804577+00:00"}

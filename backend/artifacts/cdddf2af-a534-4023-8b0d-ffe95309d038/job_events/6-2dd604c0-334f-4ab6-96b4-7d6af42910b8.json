@@ -1,0 +1,1 @@
+{"event": "verbose", "uuid": "2dd604c0-334f-4ab6-96b4-7d6af42910b8", "counter": 6, "stdout": "\u001b[0;31m119   when: final_check.stdout is search('Slave_SQL_Running: No')\u001b[0m", "start_line": 5, "end_line": 6, "runner_ident": "cdddf2af-a534-4023-8b0d-ffe95309d038", "created": "2026-02-14T17:06:01.804703+00:00"}

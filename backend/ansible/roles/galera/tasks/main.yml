@@ -7,8 +7,8 @@
       - mariadb-client
       - mariadb-backup
       - python3-pymysql
-      - socat             # Required for Galera SST
-      - rsync             # Required for Galera SST
+      - socat
+      - rsync
     state: present
     update_cache: yes
   become: yes
@@ -50,7 +50,7 @@
     path: /var/lib/mysql/grastate.dat
   register: grastate_file
 
-# 5. Handle Cluster Bootstrap logic
+# 5. Handle Cluster Bootstrap logic (Primary Node)
 - name: Bootstrap logic for Primary Node (Node 01)
   block:
     - name: Set safe_to_bootstrap flag in grastate.dat
@@ -75,10 +75,15 @@
         priv: "*.*:ALL"
         state: present
         host: "%"
+        login_user: root
+        login_password: "{{ wsrep_sst_auth.split(':')[1] }}"
         login_unix_socket: /var/run/mysqld/mysqld.sock
+        check_implicit_admin: yes
+      no_log: true
   become: yes
   when: inventory_hostname == groups['galera'][0]
 
+# 6. Join Secondary Nodes
 - name: Join Secondary Nodes to Cluster
   service:
     name: mariadb
@@ -91,17 +96,30 @@
   retries: 5
   delay: 10
 
-# 6. Verification
-- name: Wait for Galera nodes to reach Synced state
-  shell: "mariadb -u root -e \"SHOW STATUS LIKE 'wsrep_local_state_comment';\" | grep 'Synced'"
+# 7. Verification (Handles password lock-out during sync)
+- name: Wait for local Galera node to be Synced and ready for SQL
+  shell: >
+    mariadb -u root -p'{{ wsrep_sst_auth.split(":")[1] }}' 
+    -e "SHOW STATUS LIKE 'wsrep_local_state_comment';" | grep 'Synced'
+  become: yes
   register: wait_for_sync
   until: wait_for_sync.rc == 0
-  retries: 40
-  delay: 15  # Increased delay to allow for background sync
-  become: yes
+  retries: 60
+  delay: 10
   changed_when: false
+  no_log: true
 
-# 7. SINGLE-WRITER HCIP LOGIC (The "Dummy" Setup)
+- name: Ensure MariaDB is accepting local connections
+  command: >
+    mariadb -u root -p'{{ wsrep_sst_auth.split(":")[1] }}' -e "SELECT 1;"
+  become: yes
+  register: db_ready
+  until: db_ready.rc == 0
+  retries: 20
+  delay: 5
+  no_log: true
+
+# 8. SINGLE-WRITER HCIP LOGIC
 - name: Ensure dummy network module is loaded
   modprobe:
     name: dummy
@@ -112,6 +130,8 @@
   shell: "ip link add dummy0 type dummy || true"
   become: yes
 
+
+
 - name: Deploy HCIP Management Script
   copy:
     dest: /usr/local/bin/galera_hcip_manager.sh
@@ -119,9 +139,11 @@
     content: |
       #!/bin/bash
       # Managed by Harbor Master
-      HCIP="{{ hcip_value | default('10.0.0.100') }}"
-      STATE=$(mariadb -N -s -e "SHOW GLOBAL STATUS LIKE 'wsrep_local_state_comment';" | awk '{print $2}')
-      INDEX=$(mariadb -N -s -e "SHOW GLOBAL STATUS LIKE 'wsrep_local_index';" | awk '{print $2}')
+      HCIP="{{ lvs_vip }}"
+      PASS="{{ wsrep_sst_auth.split(':')[1] }}"
+      
+      STATE=$(mariadb -u root -p"$PASS" -N -s -e "SHOW GLOBAL STATUS LIKE 'wsrep_local_state_comment';" 2>/dev/null | awk '{print $2}')
+      INDEX=$(mariadb -u root -p"$PASS" -N -s -e "SHOW GLOBAL STATUS LIKE 'wsrep_local_index';" 2>/dev/null | awk '{print $2}')
 
       if [ "$STATE" == "Synced" ] && [ "$INDEX" == "0" ]; then
           if ! ip addr show dummy0 | grep -q "$HCIP"; then
@@ -145,7 +167,7 @@
     job: "/usr/local/bin/galera_hcip_manager.sh"
   become: yes
 
-# 8. Users & Access Management (Crucial Fix for Demo)
+# 9. Users & Access Management (No delegation to avoid donor locking)
 - name: Create Replication User for Async Node
   community.mysql.mysql_user:
     name: "{{ repl_user }}"
@@ -153,14 +175,13 @@
     priv: "*.*:REPLICATION SLAVE"
     host: "%"
     state: present
+    column_case_sensitive: false
+    login_user: root
+    login_password: "{{ wsrep_sst_auth.split(':')[1] }}"
     login_unix_socket: /var/run/mysqld/mysqld.sock
+    check_implicit_admin: yes
   become: yes
-  delegate_to: "{{ groups['galera'][0] }}"
   run_once: true
-  register: create_user_repl
-  until: create_user_repl is success
-  retries: 10
-  delay: 20
 
 - name: Allow Root Access from Remote Network
   community.mysql.mysql_user:
@@ -169,14 +190,16 @@
     password: "{{ wsrep_sst_auth.split(':')[1] }}"
     priv: "*.*:ALL,GRANT"
     state: present
+    login_user: root
+    login_password: "{{ wsrep_sst_auth.split(':')[1] }}"
     login_unix_socket: /var/run/mysqld/mysqld.sock
+    check_implicit_admin: yes
   loop:
     - "%"
-    - "{{ ansible_facts['default_ipv4']['address'] }}"
+    - "localhost"
   become: yes
-  delegate_to: "{{ groups['galera'][0] }}"
   run_once: true
-  register: root_access_repl
-  until: root_access_repl is success
-  retries: 10
-  delay: 20
+  register: root_access_res
+  until: root_access_res is success
+  retries: 5
+  delay: 5

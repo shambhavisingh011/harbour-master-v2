@@ -1,0 +1,374 @@
+
+PLAY [Phase 1 - Prepare All Nodes] *********************************************
+
+TASK [Gathering Facts] *********************************************************
+[1;35m[WARNING]: Host 'db-node-01' is using the discovered Python interpreter at '/usr/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.[0m
+[0;32mok: [db-node-01][0m
+[1;35m[WARNING]: Host 'async-node' is using the discovered Python interpreter at '/usr/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.[0m
+[0;32mok: [async-node][0m
+
+TASK [Wait for apt lock to be released] ****************************************
+[0;33mchanged: [db-node-01][0m
+[0;33mchanged: [async-node][0m
+
+TASK [Install basic utilities] *************************************************
+[0;32mok: [db-node-01][0m
+[0;32mok: [async-node][0m
+
+PLAY [Phase 1 - Prepare All Nodes] *********************************************
+
+TASK [Gathering Facts] *********************************************************
+[1;35m[WARNING]: Host 'db-node-02' is using the discovered Python interpreter at '/usr/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.[0m
+[0;32mok: [db-node-02][0m
+[1;35m[WARNING]: Host 'db-node-03' is using the discovered Python interpreter at '/usr/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.[0m
+[0;32mok: [db-node-03][0m
+
+TASK [Wait for apt lock to be released] ****************************************
+[0;33mchanged: [db-node-02][0m
+[0;33mchanged: [db-node-03][0m
+
+TASK [Install basic utilities] *************************************************
+[0;32mok: [db-node-02][0m
+[0;32mok: [db-node-03][0m
+
+PLAY [Phase 1 - Prepare All Nodes] *********************************************
+
+TASK [Gathering Facts] *********************************************************
+[1;35m[WARNING]: Host 'lvs-node-2' is using the discovered Python interpreter at '/usr/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.[0m
+[0;32mok: [lvs-node-2][0m
+[1;35m[WARNING]: Host 'lvs-node-1' is using the discovered Python interpreter at '/usr/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.[0m
+[0;32mok: [lvs-node-1][0m
+
+TASK [Wait for apt lock to be released] ****************************************
+[0;33mchanged: [lvs-node-1][0m
+[0;33mchanged: [lvs-node-2][0m
+
+TASK [Install basic utilities] *************************************************
+[0;32mok: [lvs-node-1][0m
+[0;32mok: [lvs-node-2][0m
+
+PLAY [Phase 1 - Prepare All Nodes] *********************************************
+
+TASK [Gathering Facts] *********************************************************
+[1;35m[WARNING]: Host 'monitor-node' is using the discovered Python interpreter at '/usr/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.[0m
+[0;32mok: [monitor-node][0m
+
+TASK [Wait for apt lock to be released] ****************************************
+[0;33mchanged: [monitor-node][0m
+
+TASK [Install basic utilities] *************************************************
+[0;32mok: [monitor-node][0m
+
+PLAY [Phase 2 - Setup MariaDB Repositories] ************************************
+
+TASK [Gathering Facts] *********************************************************
+[0;32mok: [db-node-02][0m
+[0;32mok: [db-node-01][0m
+
+TASK [common : Update apt cache] ***********************************************
+[0;33mchanged: [db-node-01][0m
+[0;33mchanged: [db-node-02][0m
+
+TASK [common : Install dependencies] *******************************************
+[0;32mok: [db-node-02][0m
+[0;32mok: [db-node-01][0m
+
+TASK [common : Add MariaDB GPG key] ********************************************
+[0;32mok: [db-node-01][0m
+[0;32mok: [db-node-02][0m
+
+TASK [common : Add MariaDB Repository for version 10.11] ***********************
+[1;35m[WARNING]: Deprecation warnings can be disabled by setting `deprecation_warnings=False` in ansible.cfg.[0m
+[0;35m[0m
+[0;32mok: [db-node-02][0m
+[0;32mok: [db-node-01][0m
+
+TASK [common : Update apt cache after adding repo] *****************************
+[0;33mchanged: [db-node-02][0m
+[0;33mchanged: [db-node-01][0m
+
+PLAY [Phase 2 - Setup MariaDB Repositories] ************************************
+
+TASK [Gathering Facts] *********************************************************
+[0;32mok: [db-node-03][0m
+[0;32mok: [async-node][0m
+
+TASK [common : Update apt cache] ***********************************************
+[0;33mchanged: [db-node-03][0m
+[0;33mchanged: [async-node][0m
+
+TASK [common : Install dependencies] *******************************************
+[0;32mok: [db-node-03][0m
+[0;32mok: [async-node][0m
+
+TASK [common : Add MariaDB GPG key] ********************************************
+[0;32mok: [db-node-03][0m
+[0;32mok: [async-node][0m
+
+TASK [common : Add MariaDB Repository for version 10.11] ***********************
+[0;32mok: [db-node-03][0m
+[0;32mok: [async-node][0m
+
+TASK [common : Update apt cache after adding repo] *****************************
+[0;33mchanged: [db-node-03][0m
+[0;33mchanged: [async-node][0m
+
+PLAY [Phase 3 - Build Galera Cluster] ******************************************
+
+TASK [Gathering Facts] *********************************************************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : Install MariaDB Server and Galera dependencies] *****************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : Stop MariaDB to prevent standalone mode conflicts] **************
+[0;33mchanged: [db-node-01][0m
+
+TASK [galera : Disable default bind-address in 50-server.cnf] ******************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : Deploy Galera Configuration] ************************************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : Initialize MariaDB data directory if empty] *********************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : Check if grastate.dat exists] ***********************************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : Set safe_to_bootstrap flag in grastate.dat] *********************
+[0;33mchanged: [db-node-01][0m
+
+TASK [galera : Execute Galera New Cluster command] *****************************
+[0;33mchanged: [db-node-01][0m
+
+TASK [galera : Wait for Primary Node to be ready] ******************************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : Create SST User for replication] ********************************
+[0;35m[DEPRECATION WARNING]: Importing 'to_native' from 'ansible.module_utils._text' is deprecated. This feature will be removed from ansible-core version 2.24. Use ansible.module_utils.common.text.converters instead.[0m
+[0;32mok: [db-node-01][0m
+
+TASK [galera : Join Secondary Nodes to Cluster] ********************************
+[0;36mskipping: [db-node-01][0m
+
+TASK [galera : Wait for local Galera node to be Synced and ready for SQL] ******
+[0;32mok: [db-node-01][0m
+
+TASK [galera : Ensure MariaDB is accepting local connections] ******************
+[0;33mchanged: [db-node-01][0m
+
+TASK [galera : Ensure dummy network module is loaded] **************************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : Create dummy0 network interface] ********************************
+[0;33mchanged: [db-node-01][0m
+
+TASK [galera : Deploy HCIP Management Script] **********************************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : Run HCIP Manager to initialize state] ***************************
+[0;33mchanged: [db-node-01][0m
+
+TASK [galera : Add HCIP Manager to Crontab for persistence] ********************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : Create Replication User for Async Node] *************************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : Allow Root Access from Remote Network] **************************
+[0;32mok: [db-node-01] => (item=%)[0m
+[0;32mok: [db-node-01] => (item=localhost)[0m
+
+PLAY [Phase 3 - Build Galera Cluster] ******************************************
+
+TASK [Gathering Facts] *********************************************************
+[0;32mok: [db-node-02][0m
+
+TASK [galera : Install MariaDB Server and Galera dependencies] *****************
+[0;32mok: [db-node-02][0m
+
+TASK [galera : Stop MariaDB to prevent standalone mode conflicts] **************
+[0;33mchanged: [db-node-02][0m
+
+TASK [galera : Disable default bind-address in 50-server.cnf] ******************
+[0;32mok: [db-node-02][0m
+
+TASK [galera : Deploy Galera Configuration] ************************************
+[0;32mok: [db-node-02][0m
+
+TASK [galera : Initialize MariaDB data directory if empty] *********************
+[0;32mok: [db-node-02][0m
+
+TASK [galera : Check if grastate.dat exists] ***********************************
+[0;32mok: [db-node-02][0m
+
+TASK [galera : Set safe_to_bootstrap flag in grastate.dat] *********************
+[0;36mskipping: [db-node-02][0m
+
+TASK [galera : Execute Galera New Cluster command] *****************************
+[0;36mskipping: [db-node-02][0m
+
+TASK [galera : Wait for Primary Node to be ready] ******************************
+[0;36mskipping: [db-node-02][0m
+
+TASK [galera : Create SST User for replication] ********************************
+[0;36mskipping: [db-node-02][0m
+
+TASK [galera : Join Secondary Nodes to Cluster] ********************************
+[1;30mFAILED - RETRYING: [db-node-02]: Join Secondary Nodes to Cluster (5 retries left).[0m
+[0;33mchanged: [db-node-02][0m
+
+TASK [galera : Wait for local Galera node to be Synced and ready for SQL] ******
+[0;32mok: [db-node-02][0m
+
+TASK [galera : Ensure MariaDB is accepting local connections] ******************
+[0;33mchanged: [db-node-02][0m
+
+TASK [galera : Ensure dummy network module is loaded] **************************
+[0;32mok: [db-node-02][0m
+
+TASK [galera : Create dummy0 network interface] ********************************
+[0;33mchanged: [db-node-02][0m
+
+TASK [galera : Deploy HCIP Management Script] **********************************
+[0;32mok: [db-node-02][0m
+
+TASK [galera : Run HCIP Manager to initialize state] ***************************
+[0;33mchanged: [db-node-02][0m
+
+TASK [galera : Add HCIP Manager to Crontab for persistence] ********************
+[0;32mok: [db-node-02][0m
+
+TASK [galera : Create Replication User for Async Node] *************************
+[0;32mok: [db-node-02][0m
+
+TASK [galera : Allow Root Access from Remote Network] **************************
+[0;32mok: [db-node-02] => (item=%)[0m
+[0;32mok: [db-node-02] => (item=localhost)[0m
+
+PLAY [Phase 3 - Build Galera Cluster] ******************************************
+
+TASK [Gathering Facts] *********************************************************
+[0;32mok: [db-node-03][0m
+
+TASK [galera : Install MariaDB Server and Galera dependencies] *****************
+[0;32mok: [db-node-03][0m
+
+TASK [galera : Stop MariaDB to prevent standalone mode conflicts] **************
+[0;33mchanged: [db-node-03][0m
+
+TASK [galera : Disable default bind-address in 50-server.cnf] ******************
+[0;32mok: [db-node-03][0m
+
+TASK [galera : Deploy Galera Configuration] ************************************
+[0;32mok: [db-node-03][0m
+
+TASK [galera : Initialize MariaDB data directory if empty] *********************
+[0;32mok: [db-node-03][0m
+
+TASK [galera : Check if grastate.dat exists] ***********************************
+[0;32mok: [db-node-03][0m
+
+TASK [galera : Set safe_to_bootstrap flag in grastate.dat] *********************
+[0;36mskipping: [db-node-03][0m
+
+TASK [galera : Execute Galera New Cluster command] *****************************
+[0;36mskipping: [db-node-03][0m
+
+TASK [galera : Wait for Primary Node to be ready] ******************************
+[0;36mskipping: [db-node-03][0m
+
+TASK [galera : Create SST User for replication] ********************************
+[0;36mskipping: [db-node-03][0m
+
+TASK [galera : Join Secondary Nodes to Cluster] ********************************
+[0;33mchanged: [db-node-03][0m
+
+TASK [galera : Wait for local Galera node to be Synced and ready for SQL] ******
+[0;32mok: [db-node-03][0m
+
+TASK [galera : Ensure MariaDB is accepting local connections] ******************
+[0;33mchanged: [db-node-03][0m
+
+TASK [galera : Ensure dummy network module is loaded] **************************
+[0;32mok: [db-node-03][0m
+
+TASK [galera : Create dummy0 network interface] ********************************
+[0;33mchanged: [db-node-03][0m
+
+TASK [galera : Deploy HCIP Management Script] **********************************
+[0;32mok: [db-node-03][0m
+
+TASK [galera : Run HCIP Manager to initialize state] ***************************
+[0;33mchanged: [db-node-03][0m
+
+TASK [galera : Add HCIP Manager to Crontab for persistence] ********************
+[0;32mok: [db-node-03][0m
+
+TASK [galera : Create Replication User for Async Node] *************************
+[0;32mok: [db-node-03][0m
+
+TASK [galera : Allow Root Access from Remote Network] **************************
+[0;32mok: [db-node-03] => (item=%)[0m
+[0;32mok: [db-node-03] => (item=localhost)[0m
+
+PLAY [Setup LVS Load Balancers] ************************************************
+
+TASK [Gathering Facts] *********************************************************
+[0;32mok: [lvs-node-2][0m
+[0;32mok: [lvs-node-1][0m
+
+TASK [lvs : Install LVS and Keepalived dependencies] ***************************
+[0;32mok: [lvs-node-2][0m
+[0;32mok: [lvs-node-1][0m
+
+TASK [lvs : Enable IPv4 forwarding] ********************************************
+[0;32mok: [lvs-node-2][0m
+[0;32mok: [lvs-node-1][0m
+
+TASK [lvs : Add route to HCIP subnet for health checks] ************************
+[0;35m[0m
+[0;33mchanged: [lvs-node-1][0m
+[0;33mchanged: [lvs-node-2][0m
+
+TASK [lvs : Deploy Keepalived configuration from template] *********************
+[0;35m[DEPRECATION WARNING]: INJECT_FACTS_AS_VARS default to `True` is deprecated, top-level facts will not be auto injected after the change. This feature will be removed from ansible-core version 2.24.[0m
+[0;35mOrigin: /home/ubuntu/harbour-master/backend/ansible/roles/lvs/templates/keepalived.conf.j2[0m
+[0;35m[0m
+[0;35mUse `ansible_facts["fact_name"]` (no `ansible_` prefix) instead.[0m
+[0;35m[0m
+[0;32mok: [lvs-node-1][0m
+[0;32mok: [lvs-node-2][0m
+
+TASK [lvs : Restart and Enable Keepalived] *************************************
+[0;36mskipping: [lvs-node-1][0m
+[0;36mskipping: [lvs-node-2][0m
+
+PLAY [Configure Async Replica] *************************************************
+
+TASK [Gathering Facts] *********************************************************
+[0;32mok: [async-node][0m
+
+TASK [async_replica : Ensure MariaDB Server is installed on Async Node] ********
+[0;32mok: [async-node][0m
+
+TASK [async_replica : Ensure Replication User has access from Async Node IP] ***
+[0;31m[ERROR]: Task failed: Module failed: (1047, 'WSREP has not yet prepared node for application use')[0m
+[0;31mOrigin: /home/ubuntu/harbour-master/backend/ansible/roles/async_replica/tasks/main.yml:14:3[0m
+[0;31m[0m
+[0;31m12 # 1. FIX PERMISSIONS ON THE GALERA MASTER[0m
+[0;31m13 # We use Node 1 as the primary reference for delegation[0m
+[0;31m14 - name: Ensure Replication User has access from Async Node IP[0m
+[0;31m     ^ column 3[0m
+[0;31m[0m
+[0;31mfatal: [async-node -> db-node-01(192.168.64.202)]: FAILED! => {"changed": false, "msg": "Task failed: Module failed: (1047, 'WSREP has not yet prepared node for application use')"}[0m
+
+PLAY RECAP *********************************************************************
+[0;31masync-node[0m                 : [0;32mok=11  [0m [0;33mchanged=3   [0m unreachable=0    [0;31mfailed=1   [0m skipped=0    rescued=0    ignored=0   
+[0;33mdb-node-01[0m                 : [0;32mok=29  [0m [0;33mchanged=9   [0m unreachable=0    failed=0    [0;36mskipped=1   [0m rescued=0    ignored=0   
+[0;33mdb-node-02[0m                 : [0;32mok=26  [0m [0;33mchanged=8   [0m unreachable=0    failed=0    [0;36mskipped=4   [0m rescued=0    ignored=0   
+[0;33mdb-node-03[0m                 : [0;32mok=26  [0m [0;33mchanged=8   [0m unreachable=0    failed=0    [0;36mskipped=4   [0m rescued=0    ignored=0   
+[0;33mlvs-node-1[0m                 : [0;32mok=8   [0m [0;33mchanged=2   [0m unreachable=0    failed=0    [0;36mskipped=1   [0m rescued=0    ignored=0   
+[0;33mlvs-node-2[0m                 : [0;32mok=8   [0m [0;33mchanged=2   [0m unreachable=0    failed=0    [0;36mskipped=1   [0m rescued=0    ignored=0   
+[0;33mmonitor-node[0m               : [0;32mok=3   [0m [0;33mchanged=1   [0m unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   

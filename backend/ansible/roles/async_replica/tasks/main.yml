@@ -1,6 +1,5 @@
 ---
 # 0. PRE-REQUISITE: INSTALL MARIADB SERVER
-# Since the service is missing, we must ensure the package is installed first.
 - name: Ensure MariaDB Server is installed on Async Node
   apt:
     name: 
@@ -18,9 +17,17 @@
     host: "{{ ansible_host }}"
     priv: "*.*:REPLICATION SLAVE"
     state: present
+    login_user: root
+    login_password: "{{ wsrep_sst_auth.split(':')[1] }}"
     login_unix_socket: /var/run/mysqld/mysqld.sock
-  delegate_to: "{{ groups['galera'][2] }}" 
+    check_implicit_admin: yes
+  delegate_to: "{{ groups['galera'][0] }}"
+  run_once: true
   become: yes
+  register: repl_user_setup
+  until: repl_user_setup is success
+  retries: 20
+  delay: 10
 
 # 2. APPLY CONFIGURATION
 - name: Ensure MariaDB config directory exists
@@ -66,11 +73,15 @@
 
 # 4. CAPTURE MASTER POSITION
 - name: Get current Master GTID Position
-  shell: "mariadb -N -s -e 'SELECT @@gtid_binlog_pos;'"
-  delegate_to: "{{ groups['galera'][2] }}"
+  shell: "mariadb -u root -p'{{ wsrep_sst_auth.split(':')[1] }}' -N -s -e 'SELECT @@gtid_binlog_pos;'"
+  delegate_to: "{{ groups['galera'][0] }}"
   register: master_gtid_raw
+  until: master_gtid_raw.rc == 0
+  retries: 20
+  delay: 10
   become: yes
   changed_when: false
+  no_log: true
 
 # 5. SYNC SLAVE TO MASTER POSITION
 - name: Align Slave GTID position with Master
@@ -82,11 +93,14 @@
 - name: Configure Master Handshake
   community.mysql.mysql_replication:
     mode: changeprimary
-    primary_host: "{{ hostvars[groups['galera'][2]]['ansible_host'] }}"
+    primary_host: "{{ hostvars[groups['galera'][0]]['ansible_host'] }}"
     primary_user: "{{ repl_user }}"
     primary_password: "{{ repl_password }}"
     primary_use_gtid: replica_pos
+    login_user: root
+    login_password: "{{ wsrep_sst_auth.split(':')[1] }}"
     login_unix_socket: /var/run/mysqld/mysqld.sock
+    check_implicit_admin: yes
   become: yes
 
 - name: Allow Root Access on Async Node for Health Checker
@@ -96,28 +110,42 @@
     password: "{{ wsrep_sst_auth.split(':')[1] }}"
     priv: "*.*:ALL,GRANT"
     state: present
+    login_user: root
+    login_password: "{{ wsrep_sst_auth.split(':')[1] }}"
     login_unix_socket: /var/run/mysqld/mysqld.sock
+    check_implicit_admin: yes
   loop:
     - "%"
     - "127.0.0.1"
-    - "{{ ansible_env.SSH_CLIENT.split(' ')[0] if (ansible_env.SSH_CLIENT is defined) else '192.168.64.118' }}"
+    - "localhost"
   become: yes
 
 - name: Start Replication
   community.mysql.mysql_replication:
     mode: startreplica
+    login_user: root
+    login_password: "{{ wsrep_sst_auth.split(':')[1] }}"
     login_unix_socket: /var/run/mysqld/mysqld.sock
+    check_implicit_admin: yes
   become: yes
 
 # 7. FINAL VERIFICATION
 - name: Verify Replication Status
-  shell: "mariadb -e 'SHOW REPLICA STATUS\\G' | grep -E 'Slave_(IO|SQL)_Running|Seconds_Behind_Master|Last_IO_Error'"
+  shell: "mariadb -u root -p'{{ wsrep_sst_auth.split(':')[1] }}' -e 'SHOW REPLICA STATUS\\G' | grep -E 'Slave_(IO|SQL)_Running|Seconds_Behind_Master|Last_IO_Error'"
   register: final_check
   become: yes
   changed_when: false
   until: '"Slave_IO_Running: Yes" in final_check.stdout'
   retries: 15
   delay: 5
+
+- name: Force skip initial replication errors if any
+  shell: |
+    mariadb -u root -p'{{ wsrep_sst_auth.split(':')[1] }}' -e "STOP SLAVE;"
+    mariadb -u root -p'{{ wsrep_sst_auth.split(':')[1] }}' -e "SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 1;"
+    mariadb -u root -p'{{ wsrep_sst_auth.split(':')[1] }}' -e "START SLAVE;"
+  become: yes
+  when: "final_check.stdout is search('Slave_SQL_Running: No')"
 
 - name: Display Replication Status
   debug:

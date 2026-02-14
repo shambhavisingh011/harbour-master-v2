@@ -19,4 +19,6 @@ wsrep_provider          = none
 # --- Logging Management ---
 expire_logs_days        = {{ expire_logs_days | default(7) }}
 max_binlog_size         = 100M
-
+# 1396: Operation CREATE USER failed
+# 1062: Duplicate entry for primary key
+slave-skip-errors       = 1396, 1062
