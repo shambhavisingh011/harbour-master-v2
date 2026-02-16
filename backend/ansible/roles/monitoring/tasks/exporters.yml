@@ -9,17 +9,46 @@
     update_cache: yes
   become: yes
 
-- name: "[Gatekeeper] Wait for MariaDB to be Synced before creating users"
+- name: "[Gatekeeper] Check Galera Sync Status"
   shell: |
-    mariadb -u root -p'{{ wsrep_sst_auth.split(":")[1] }}' -N -s -e "SHOW STATUS LIKE 'wsrep_local_state_comment';"
+    # Using SST password as it is guaranteed to be in scope
+    PASS="{{ wsrep_sst_auth.split(':')[1] }}"
+    if mariadb -u root -p"$PASS" -e "SHOW STATUS LIKE 'wsrep_local_state_comment';" | grep -q 'wsrep_local_state_comment'; then
+       mariadb -u root -p"$PASS" -N -s -e "SHOW STATUS LIKE 'wsrep_local_state_comment';" | awk '{print $2}'
+    else
+       echo "Standalone"
+    fi
   become: yes
-  register: monitor_sync_check
-  # Only run this on Galera nodes, not the Async node
-  when: inventory_hostname in groups['galera']
-  until: '"Synced" in monitor_sync_check.stdout'
+  register: cluster_status
+  until: cluster_status.stdout == "Synced" or cluster_status.stdout == "Standalone"
+  retries: 10
+  delay: 5
+  ignore_errors: yes
+
+- name: "[Recovery] Force Bootstrap on db-01 if stuck"
+  shell: |
+    PASS="{{ wsrep_sst_auth.split(':')[1] }}"
+    mariadb -u root -p"$PASS" -e "SET GLOBAL wsrep_provider_options='pc.bootstrap=YES';"
+  become: yes
+  when: 
+    - inventory_hostname == groups['galera'][0]
+    - cluster_status.stdout is defined
+    - cluster_status.stdout == "Initialized"
+  # This acts like your manual restart by forcing db-01 to form a Primary Component
+
+- name: "[Gatekeeper] Final Wait for Sync after Recovery"
+  shell: |
+    PASS="{{ wsrep_sst_auth.split(':')[1] }}"
+    mariadb -u root -p"$PASS" -N -s -e "SHOW STATUS LIKE 'wsrep_local_state_comment';" | awk '{print $2}'
+  become: yes
+  register: final_sync_check
+  until: final_sync_check.stdout == "Synced" or final_sync_check.stdout == "Standalone"
   retries: 15
   delay: 10
-  changed_when: false
+  when: 
+    - cluster_status.stdout is defined 
+    - cluster_status.stdout != "Synced"
+    - cluster_status.stdout != "Standalone"
 
 - name: Create MariaDB Exporter User
   community.mysql.mysql_user:

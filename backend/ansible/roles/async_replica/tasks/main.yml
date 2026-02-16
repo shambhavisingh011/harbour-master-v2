@@ -71,6 +71,19 @@
   become: yes
   register: replica_conf
 
+- name: Grant Control Node access to Async Node for Diagnostics
+  community.mysql.mysql_user:
+    name: root
+    password: "{{ wsrep_sst_auth.split(':')[1] }}"
+    # Robust IP detection: Try SSH_CLIENT, then Control Node IP, then fallback to Head Node's specific subnet IP
+    host: "{{ (ansible_env.SSH_CLIENT | default('')).split() | first | default(hostvars['localhost']['ansible_default_ipv4']['address'] | default('192.168.64.191')) }}"
+    priv: "*.*:ALL,GRANT"
+    state: present
+    login_user: root
+    login_password: "{{ wsrep_sst_auth.split(':')[1] }}"
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+  become: yes
+
 - name: Restart MariaDB to apply configs
   systemd:
     name: mariadb

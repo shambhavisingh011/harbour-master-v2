@@ -70,7 +70,7 @@
   become: yes
   when: inventory_hostname == groups['galera'][0]
 
-# 6. Join Secondary Nodes
+# 6. Join Secondary Nodes with Recovery Logic
 - name: "Join Secondary Nodes to Cluster"
   service:
     name: mariadb
@@ -79,9 +79,28 @@
   when: inventory_hostname != groups['galera'][0]
   throttle: 1
   register: node_join
-  until: node_join is success
-  retries: 5
-  delay: 10
+  ignore_errors: yes  # Allow it to fail so the recovery block can run
+
+- name: "RECOVERY: Wipe corrupted state if Join failed"
+  file:
+    path: "/var/lib/mysql/{{ item }}"
+    state: absent
+  become: yes
+  loop:
+    - grastate.dat
+    - galera.cache
+  when: 
+    - inventory_hostname != groups['galera'][0]
+    - node_join is failed
+
+- name: "RETRY: Start MariaDB after state wipe"
+  service:
+    name: mariadb
+    state: started
+  become: yes
+  when: 
+    - inventory_hostname != groups['galera'][0]
+    - node_join is failed
 
 # 7. AUTOMATED HEALTH CHECK & SELF-HEALING
 - name: "[Self-Healing] Check MariaDB Service and Cluster State"
@@ -112,7 +131,6 @@
   shell: |
     mariadb -u root -p'{{ wsrep_sst_auth.split(":")[1] }}' -e "SET GLOBAL wsrep_provider_options='pc.bootstrap=YES';"
   become: yes
-  # If Node 1 is up but others can't join it because it's 'non-primary', force it to be primary.
   when: 
     - inventory_hostname == groups['galera'][0]
     - (node_status_result.stdout == "Initialized" or node_status_result.stdout == "")
@@ -123,7 +141,7 @@
   become: yes
   register: sync_check
   until: '"Synced" in sync_check.stdout'
-  retries: 30
+  retries: 40
   delay: 10
   changed_when: false
 
@@ -154,7 +172,7 @@
     mode: '0755'
     content: |
       #!/bin/bash
-      HCIP="{{ lvs_vip }}"
+      HCIP="10.0.0.100"
       PASS="{{ wsrep_sst_auth.split(':')[1] }}"
       
       STATE=$(mariadb -u root -p"$PASS" -N -s -e "SHOW GLOBAL STATUS LIKE 'wsrep_local_state_comment';" 2>/dev/null | awk '{print $2}')
