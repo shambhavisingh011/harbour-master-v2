@@ -1,24 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Activity, Server, Database, Loader2, CheckCircle, XCircle, Globe, Zap, Settings, Lock, Eye, EyeOff, ShieldCheck, Layers, Info, Network, Cpu, Terminal, ArrowRight, ArrowLeft, AlertTriangle, Play, FileCode, Download, User, LogIn, ShieldAlert, Users, UserPlus, X } from 'lucide-react';
+import { Activity, Server, Database, Loader2, CheckCircle, XCircle, Globe, Zap, Settings, Lock, Eye, EyeOff, ShieldCheck, Layers, Info, Network, Cpu, Terminal, ArrowRight, ArrowLeft, AlertTriangle, Play, FileCode, Download, User, LogIn } from 'lucide-react';
 
 function App() {
-  // --- UPDATED: MOVED USERS TO STATE TO ALLOW UI UPDATES ---
-  const [userRegistry, setUserRegistry] = useState([
-    { username: 'admin', password: 'admin', role: 'admin' },
-    { username: 'operator', password: 'operator', role: 'admin' },
-    { username: 'viewer', password: 'viewer!', role: 'viewer' }
-  ]);
-
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null);
   const [loginData, setLoginData] = useState({ username: '', password: '' });
   const [loginError, setLoginError] = useState('');
   
-  // --- NEW: USER MANAGEMENT STATE ---
-  const [showUserMgmt, setShowUserMgmt] = useState(false);
-  const [newUser, setNewUser] = useState({ username: '', password: '', role: 'viewer' });
-
-  const [page, setPage] = useState(1); 
+  const [page, setPage] = useState(1); // 1: Config, 2: Deployment/Monitor
   const [loading, setLoading] = useState(false);
   const [validating, setValidating] = useState(false);
   const [report, setReport] = useState(null);
@@ -28,6 +16,7 @@ function App() {
   const [previewContent, setPreviewContent] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
   
+  // --- LOGGING STATE ---
   const [logs, setLogs] = useState([]);
   const [streamStatus, setStreamStatus] = useState("Disconnected");
   const logContainerRef = useRef(null);
@@ -83,26 +72,13 @@ function App() {
 
   const handleLoginSubmit = (e) => {
     e.preventDefault();
-    const user = userRegistry.find(u => u.username === loginData.username && u.password === loginData.password);
-    if (user) {
+    // Simple mock logic - replace with your backend auth call
+    if (loginData.username === 'admin' && loginData.password === 'password123') {
       setIsAuthenticated(true);
-      setCurrentUser(user);
       setLoginError('');
     } else {
-      setLoginError('Access Denied: Invalid credentials or unauthorized user.');
+      setLoginError('Invalid username or password');
     }
-  };
-
-  // --- NEW: HANDLE CREATING USERS ---
-  const handleAddUser = (e) => {
-    e.preventDefault();
-    if (userRegistry.find(u => u.username === newUser.username)) {
-      alert("Username already exists.");
-      return;
-    }
-    setUserRegistry([...userRegistry, newUser]);
-    setNewUser({ username: '', password: '', role: 'viewer' });
-    alert("New user authorized successfully.");
   };
 
   const handleChange = (e) => {
@@ -110,11 +86,6 @@ function App() {
   };
 
   const handleVerifyAndProceed = async () => {
-    if (currentUser?.role !== 'admin') {
-      setError("Authorization Error: Only specific admin users are permitted to modify cluster configurations.");
-      return;
-    }
-
     setValidating(true);
     setError(null);
     const payload = preparePayload();
@@ -161,7 +132,7 @@ function App() {
     const element = document.createElement("a");
     const file = new Blob([logs.join("\n")], {type: 'text/plain'});
     element.href = URL.createObjectURL(file);
-    element.download = `harbor_master_logs_${new Date().toISOString()}.log`;
+    element.download = `harbor_master_deployment_${new Date().toISOString()}.log`;
     document.body.appendChild(element);
     element.click();
     document.body.removeChild(element);
@@ -187,10 +158,6 @@ function App() {
   };
 
   const executeDeployment = async () => {
-    if (currentUser?.role !== 'admin') {
-        setError("Action Denied: Unauthorized role for cluster deployment.");
-        return;
-    }
     setLoading(true);
     setError(null);
     setLogs([]);
@@ -217,6 +184,7 @@ function App() {
 
   const getGrafanaURL = () => `http://${formData.monitor_ip}:3000/dashboards`;
 
+  // --- LOGIN PAGE RENDER ---
   if (!isAuthenticated) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: '#f5f2f9', fontFamily: 'Inter, sans-serif' }}>
@@ -226,32 +194,36 @@ function App() {
           </div>
           <h2 style={{ color: '#5f259f', marginBottom: '10px', fontSize: '24px' }}>Harbor Master</h2>
           <p style={{ color: '#666', fontSize: '14px', marginBottom: '30px' }}>Management Control Plane Login</p>
+          
           <form onSubmit={handleLoginSubmit} style={{ textAlign: 'left' }}>
             <div style={{ marginBottom: '20px' }}>
               <RequiredLabel>Username</RequiredLabel>
               <div style={passwordWrapper}>
                  <User size={18} style={{ position: 'absolute', left: '12px', color: '#7e57c2' }} />
-                 <input name="username" style={{ ...inputStyle, paddingLeft: '40px', marginBottom: 0 }} placeholder="Registered username" value={loginData.username} onChange={handleLoginChange} required />
+                 <input name="username" style={{ ...inputStyle, paddingLeft: '40px', marginBottom: 0 }} placeholder="Enter username" value={loginData.username} onChange={handleLoginChange} required />
               </div>
             </div>
             <div style={{ marginBottom: '25px' }}>
               <RequiredLabel>Password</RequiredLabel>
               <div style={passwordWrapper}>
                 <Lock size={18} style={{ position: 'absolute', left: '12px', color: '#7e57c2' }} />
-                <input type="password" name="password" style={{ ...inputStyle, paddingLeft: '40px', marginBottom: 0 }} placeholder="Password" value={loginData.password} onChange={handleLoginChange} required />
+                <input type="password" name="password" style={{ ...inputStyle, paddingLeft: '40px', marginBottom: 0 }} placeholder="Enter password" value={loginData.password} onChange={handleLoginChange} required />
               </div>
             </div>
-            {loginError && <div style={{ color: '#E91E63', fontSize: '12px', marginBottom: '15px', textAlign: 'center', backgroundColor: '#fff0f0', padding: '10px', borderRadius: '8px' }}>{loginError}</div>}
+            {loginError && <div style={{ color: '#E91E63', fontSize: '13px', marginBottom: '15px', textAlign: 'center' }}>{loginError}</div>}
             <button type="submit" style={deployBtn}>
-              <LogIn size={20} /> AUTHORIZE SESSION
+              <LogIn size={20} /> ACCESS DASHBOARD
             </button>
           </form>
-          <div style={{ marginTop: '30px', fontSize: '11px', color: '#999' }}>Authorized Personnel Only</div>
+          <div style={{ marginTop: '30px', fontSize: '11px', color: '#999' }}>
+            Secure Infrastructure Gateway v2.0
+          </div>
         </div>
       </div>
     );
   }
 
+  // --- MAIN APP RENDER ---
   return (
     <div style={{ padding: '20px', fontFamily: 'Inter, sans-serif', maxWidth: '1600px', margin: '0 auto', backgroundColor: '#f5f2f9', minHeight: '100vh' }}>
       <style>{`
@@ -259,69 +231,36 @@ function App() {
         .animate-spin-loop { animation: spin 1s linear infinite; }
       `}</style>
       
-      {/* HEADER WITH USER MGMT TOGGLE */}
       <div style={{ backgroundColor: '#5f259f', padding: '24px', borderRadius: '16px', marginBottom: '20px', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 4px 12px rgba(95, 37, 159, 0.2)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
             <h1 style={{ margin: 0, fontSize: '26px', letterSpacing: '-0.5px' }}> Harbor Master</h1>
-            <div style={{ background: currentUser.role === 'admin' ? '#4CAF50' : '#FF9800', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold' }}>
-                <User size={12} style={{ display: 'inline', marginRight: '5px' }} /> {currentUser.username.toUpperCase()} ({currentUser.role.toUpperCase()})
+            <div style={{ background: 'rgba(255,255,255,0.2)', padding: '4px 12px', borderRadius: '20px', fontSize: '12px' }}>
+                <User size={12} style={{ display: 'inline', marginRight: '5px' }} /> {loginData.username}
             </div>
         </div>
-        <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-            {currentUser.role === 'admin' && (
-               <button 
-                onClick={() => setShowUserMgmt(!showUserMgmt)} 
-                style={{ background: '#7e57c2', border: 'none', color: 'white', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}
-               >
-                 <Users size={16} /> {showUserMgmt ? "CLOSE MGMT" : "USER MGMT"}
-               </button>
-            )}
-            <button onClick={() => {setIsAuthenticated(false); setCurrentUser(null); setPage(1); setShowUserMgmt(false);}} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.3)', color: 'white', padding: '8px 15px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px' }}>Logout</button>
+        <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+            <div style={{ width: '320px' }}>
+            <label style={{ fontSize: '11px', fontWeight: '700', display: 'block', marginBottom: '6px', color: '#ede7f6' }}>MARIADB ENGINE VERSION *</label>
+            <select name="mariadb_version" value={formData.mariadb_version} onChange={handleChange} style={headerSelect} disabled={loading || validating}>
+                <option value="10.5.16">MariaDB 10.5.16</option>
+                <option value="10.6.21">MariaDB 10.6.21</option>
+                <option value="10.11">MariaDB 10.11</option>
+            </select>
+            </div>
+            <button onClick={() => setIsAuthenticated(false)} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.3)', color: 'white', padding: '8px 15px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px' }}>Logout</button>
         </div>
       </div>
 
-      {/* NEW: USER MANAGEMENT SECTION */}
-      {showUserMgmt && currentUser.role === 'admin' && (
-        <div style={{ ...formCard, marginBottom: '20px', border: '2px solid #5f259f', position: 'relative' }}>
-          <h3 style={cardTitle}><UserPlus size={18} /> Add Authorized User</h3>
-          <form onSubmit={handleAddUser} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 150px', gap: '15px', alignItems: 'end' }}>
-            <div>
-              <RequiredLabel>New Username</RequiredLabel>
-              <input style={{...inputStyle, marginBottom: 0}} value={newUser.username} onChange={(e) => setNewUser({...newUser, username: e.target.value})} required />
-            </div>
-            <div>
-              <RequiredLabel>New Password</RequiredLabel>
-              <input type="password" style={{...inputStyle, marginBottom: 0}} value={newUser.password} onChange={(e) => setNewUser({...newUser, password: e.target.value})} required />
-            </div>
-            <div>
-              <RequiredLabel>Role</RequiredLabel>
-              <select style={{...inputStyle, marginBottom: 0}} value={newUser.role} onChange={(e) => setNewUser({...newUser, role: e.target.value})}>
-                <option value="admin">Admin (Deployer)</option>
-                <option value="viewer">Viewer (Read-Only)</option>
-              </select>
-            </div>
-            <button type="submit" style={{...deployBtn, padding: '10px'}}>CREATE USER</button>
-          </form>
-        </div>
-      )}
-
       {page === 1 ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {currentUser.role !== 'admin' && (
-             <div style={{ ...errorBox, background: '#fff9c4', color: '#f57f17', borderColor: '#fbc02d', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <ShieldAlert size={20} />
-                <span><strong>Viewer Mode:</strong> You can view current configurations but do not have permission to create or modify clusters.</span>
-             </div>
-          )}
-
           {error && (
-            <div style={{ ...errorBox, display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ ...errorBox, display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
               <AlertTriangle size={20} />
               <span><strong>Configuration Error:</strong> {error}</span>
             </div>
           )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: '20px', opacity: currentUser.role === 'admin' ? 1 : 0.6, pointerEvents: currentUser.role === 'admin' ? 'all' : 'none' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: '20px' }}>
             <div style={formCard}>
               <h3 style={cardTitle}><Database size={18} color="#6739B7" /> Cluster Infrastructure</h3>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -372,9 +311,16 @@ function App() {
             </div>
           </div>
 
-          <div style={{ ...formCard, borderTop: '6px solid #6739B7', opacity: currentUser.role === 'admin' ? 1 : 0.6, pointerEvents: currentUser.role === 'admin' ? 'all' : 'none' }}>
+          <div style={{ ...formCard, borderTop: '6px solid #6739B7' }}>
             <h3 style={{ ...cardTitle, color: '#6739B7' }}><Layers size={18} /> Version Specific Parameters: {formData.mariadb_version}</h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
+                {formData.mariadb_version === "10.5.16" && (
+                <>
+                    <div><label style={miniLabel}>wsrep_strict_ddl</label><input name="wsrep_strict_ddl" value={formData.wsrep_strict_ddl} onChange={handleChange} style={inputStyle} /></div>
+                    <div><label style={miniLabel}>wsrep_replicate_myisam</label><input name="wsrep_replicate_myisam" value={formData.wsrep_replicate_myisam} onChange={handleChange} style={inputStyle} /></div>
+                    <div style={{ gridColumn: 'span 2' }}><label style={miniLabel}>expire_logs_days</label><input name="expire_logs_days" value={formData.expire_logs_days} onChange={handleChange} style={inputStyle} /></div>
+                </>
+                )}
                 {(formData.mariadb_version === "10.6.21" || formData.mariadb_version === "10.11") && (
                 <>
                     <div>
@@ -387,11 +333,18 @@ function App() {
                     </div>
                 </>
                 )}
+                {formData.mariadb_version === "10.11" && (
+                <div style={{ gridColumn: 'span 2', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed #d1c4e9' }}>
+                    <div><label style={miniLabel}>wsrep_slave_threads</label><input name="wsrep_slave_threads" value={formData.wsrep_slave_threads} onChange={handleChange} style={inputStyle} /></div>
+                    <div><label style={miniLabel}>innodb_undo_tablespaces</label><input name="innodb_undo_tablespaces" value={formData.innodb_undo_tablespaces} onChange={handleChange} style={inputStyle} /></div>
+                    <div><label style={miniLabel}>wsrep_gtid_domain_id</label><input name="wsrep_gtid_domain_id" value={formData.wsrep_gtid_domain_id} onChange={handleChange} style={inputStyle} /></div>
+                </div>
+                )}
             </div>
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '15px' }}>
-            <button onClick={handleVerifyAndProceed} disabled={validating || currentUser.role !== 'admin'} style={{ ...deployBtn, width: '350px', backgroundColor: validating ? '#9575cd' : currentUser.role === 'admin' ? '#6739B7' : '#ccc' }}>
+            <button onClick={handleVerifyAndProceed} disabled={validating} style={{ ...deployBtn, width: '350px', backgroundColor: validating ? '#9575cd' : '#6739B7' }}>
               {validating ? <Loader2 className="animate-spin-loop" size={20} /> : <ShieldCheck size={20} />}
               {validating ? "VERIFYING PARAMETERS..." : "VERIFY & PROCEED"}
             </button>
@@ -400,7 +353,11 @@ function App() {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: '20px', alignItems: 'start' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <button onClick={() => {setPage(1); setError(null); setShowPreview(false);}} disabled={loading} style={{ ...deployBtn, backgroundColor: loading ? '#b39ddb' : '#7e57c2', padding: '10px' }}>
+              <button 
+                onClick={() => {setPage(1); setError(null); setShowPreview(false);}} 
+                disabled={loading} 
+                style={{ ...deployBtn, backgroundColor: loading ? '#b39ddb' : '#7e57c2', padding: '10px', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}
+              >
                 <ArrowLeft size={18} /> BACK TO CONFIG
               </button>
               {report ? (
@@ -409,13 +366,36 @@ function App() {
                         <h2 style={{ color: '#5f259f', margin: 0, fontSize: '18px' }}>{report.status}</h2>
                         <div style={{ backgroundColor: report.health_report.overall_status === "Healthy" ? "#166534" : "#b91c1c", color: 'white', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold' }}>{report.health_report.overall_status}</div>
                     </div>
-                    <a href={getGrafanaURL()} target="_blank" rel="noopener noreferrer" style={grafanaBtn}><Activity size={18} /> MONITORING DASHBOARD</a>
+                    <a href={getGrafanaURL()} target="_blank" rel="noopener noreferrer" style={grafanaBtn}><Activity size={18} /> OPEN MONITORING DASHBOARD</a>
                     <div style={healthSection}>
-                        <div style={sectionLabel}><Database size={14}/> Galera: {report.cluster_name}</div>
+                        <div style={sectionLabel}><Database size={14}/> Galera Cluster: {report.cluster_name}</div>
                         {report.health_report.galera.map((node, idx) => (
                             <div key={idx} style={healthRow}>
                                 <span style={{ fontSize: '12px' }}>{node.host}</span>
-                                <span style={{ color: node.sync_state === "Synced" ? "#166534" : "#b91c1c", fontSize: '11px', fontWeight: 'bold' }}>{node.sync_state}</span>
+                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                    <span style={{ fontSize: '10px', color: '#666' }}>Size: {node.cluster_size}</span>
+                                    <span style={{ color: node.sync_state === "Synced" ? "#166534" : "#b91c1c", fontSize: '11px', fontWeight: 'bold' }}>{node.sync_state}</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    <div style={healthSection}>
+                        <div style={sectionLabel}><Globe size={14}/> Async Replica</div>
+                        <div style={healthRow}>
+                            <span style={{ fontSize: '12px' }}>{report.health_report.async.host}</span>
+                            <div style={{ display: 'flex', gap: '5px' }}><span style={pill(report.health_report.async.io_running === "Yes")}>IO</span><span style={pill(report.health_report.async.sql_running === "Yes")}>SQL</span></div>
+                        </div>
+                    </div>
+                    <div style={healthSection}>
+                        <div style={sectionLabel}><Network size={14}/> LVS Load Balancers</div>
+                        <div style={{ fontSize: '11px', marginBottom: '8px', color: '#5f259f', fontWeight: 'bold' }}>VIP: {report.lvs_vip}</div>
+                        {report.health_report.lvs.map((lvs, idx) => (
+                            <div key={idx} style={healthRow}>
+                                <span style={{ fontSize: '12px' }}>{lvs.host}</span>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    {lvs.holds_vip && <span style={{ color: '#6739B7', fontWeight: 'bold', fontSize: '10px' }}>[VIP HOLDER]</span>}
+                                    <CheckCircle size={14} color={lvs.routing_active ? "#166534" : "#ccc"} />
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -423,45 +403,82 @@ function App() {
             ) : (
                 <div style={emptyResults}>
                     <div style={{ opacity: 0.5 }}>{loading ? <Loader2 className="animate-spin-loop" size={40} /> : <Cpu size={40} />}</div>
-                    <div style={{ marginTop: '10px' }}>{loading ? "Orchestrating Cluster..." : "Ready for Deployment"}</div>
+                    <div style={{ marginTop: '10px' }}>{loading ? "Orchestrating MariaDB HA..." : "Ready for Deployment"}</div>
                 </div>
+            )}
+            {error && (
+              <div style={{...errorBox, marginTop: '10px'}}>
+                <div style={{display: 'flex', gap: '10px', alignItems: 'center'}}>
+                  <AlertTriangle size={18} />
+                  <span><strong>Deployment Error:</strong> {error}</span>
+                </div>
+              </div>
             )}
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 100px)', gap: '15px' }}>
             <div style={{ display: 'flex', gap: '10px' }}>
-              <button onClick={() => setShowPreview(!showPreview)} disabled={loading} style={{ ...deployBtn, backgroundColor: '#607d8b', flex: 1 }}>
+              <button 
+                onClick={() => setShowPreview(!showPreview)} 
+                disabled={loading}
+                style={{ ...deployBtn, backgroundColor: '#607d8b', flex: 1 }}
+              >
                 <FileCode size={20} /> {showPreview ? "HIDE PREVIEW" : "PREVIEW CONFIG"}
               </button>
-              {!report && currentUser.role === 'admin' && (
-                 <button onClick={executeDeployment} disabled={loading} style={{ ...deployBtn, backgroundColor: loading ? '#7cb342' : '#4CAF50', flex: 2 }}>
+              {!report && (
+                 <button 
+                  onClick={executeDeployment} 
+                  disabled={loading} 
+                  style={{ ...deployBtn, backgroundColor: loading ? '#7cb342' : '#4CAF50', cursor: loading ? 'not-allowed' : 'pointer', flex: 2, boxShadow: '0 4px 10px rgba(76, 175, 80, 0.3)' }}
+                >
                   {loading ? <Loader2 className="animate-spin-loop" size={20} /> : <Play size={20} />}
-                  {loading ? "DEPLOYING..." : "START ORCHESTRATION"}
+                  {loading ? "DEPLOYMENT IN PROGRESS..." : "START ORCHESTRATION"}
                 </button>
               )}
               {(report || error) && !loading && (
-                <button onClick={downloadLogs} style={{ ...deployBtn, backgroundColor: '#2196F3', flex: 1 }}>
-                  <Download size={20} /> LOGS
+                <button 
+                  onClick={downloadLogs} 
+                  style={{ ...deployBtn, backgroundColor: '#2196F3', flex: 1, boxShadow: '0 4px 10px rgba(33, 150, 243, 0.3)' }}
+                >
+                  <Download size={20} /> DOWNLOAD LOGS
                 </button>
               )}
             </div>
 
             {showPreview && (
               <div style={{ ...formCard, backgroundColor: '#1e1e1e', border: '1px solid #333', padding: '0', overflow: 'hidden' }}>
-                <div style={{ background: '#333', padding: '8px 16px', color: '#aaa', fontSize: '11px' }}>/etc/mysql/mariadb.conf.d/60-galera.cnf</div>
-                <pre style={{ margin: 0, padding: '20px', fontSize: '12px', color: '#d4d4d4', background: '#1e1e1e', maxHeight: '400px', overflowY: 'auto', whiteSpace: 'pre-wrap' }}>
-                  {previewContent || "Generating..."}
+                <div style={{ background: '#333', padding: '8px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ color: '#aaa', fontSize: '11px', fontWeight: 'bold', fontFamily: 'monospace' }}>/etc/mysql/mariadb.conf.d/60-galera.cnf</span>
+                    <div style={{ display: 'flex', gap: '5px' }}>
+                        <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ff5f56' }}></div>
+                        <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ffbd2e' }}></div>
+                        <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#27c93f' }}></div>
+                    </div>
+                </div>
+                <pre style={{ 
+                    margin: 0, 
+                    padding: '20px', 
+                    fontSize: '12px', 
+                    lineHeight: '1.5', 
+                    color: '#d4d4d4', 
+                    background: '#1e1e1e', 
+                    maxHeight: '400px', 
+                    overflowY: 'auto', 
+                    whiteSpace: 'pre-wrap',
+                    fontFamily: '"Fira Code", monospace' 
+                }}>
+                  {previewContent || "Generating preview..."}
                 </pre>
               </div>
             )}
 
             <div style={{ ...formCard, backgroundColor: '#0d1117', borderLeft: '4px solid #6739B7', display: 'flex', flexDirection: 'column', flex: 1, maxHeight: showPreview ? 'calc(100vh - 520px)' : 'calc(100vh - 200px)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                  <h3 style={{ ...cardTitle, color: '#d1c4e9', margin: 0 }}><Terminal size={18} /> Console</h3>
-                  <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '10px', backgroundColor: streamStatus === "Connected" ? "#166534" : "#b91c1c", color: 'white' }}>{streamStatus.toUpperCase()}</span>
+                  <h3 style={{ ...cardTitle, color: '#d1c4e9', margin: 0 }}><Terminal size={18} /> Deployment Console</h3>
+                  <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '10px', backgroundColor: streamStatus === "Connected" ? "#166534" : "#b91c1c", color: 'white', fontWeight: 'bold' }}>{streamStatus.toUpperCase()}</span>
                 </div>
                 <div ref={logContainerRef} style={consoleBox}>
-                    {logs.length === 0 && !loading && <div style={{color: '#4c566a'}}>Click 'START ORCHESTRATION' to begin cluster build.</div>}
+                    {logs.length === 0 && !loading && <div style={{color: '#4c566a'}}>Terminal ready. Click 'START ORCHESTRATION' to begin.</div>}
                     {logs.map((log, idx) => (
                         <div key={idx} style={{ borderBottom: '1px solid #1a1a1a', padding: '2px 0', whiteSpace: 'pre-wrap', color: log.includes('TASK [') ? '#58a6ff' : log.includes('PLAY [') ? '#d29922' : '#a3be8c', fontSize: '13px' }}>{log}</div>
                     ))}

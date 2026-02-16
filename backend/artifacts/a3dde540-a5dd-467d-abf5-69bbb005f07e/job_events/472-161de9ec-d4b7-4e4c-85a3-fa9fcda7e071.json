@@ -1,0 +1,1 @@
+{"event": "verbose", "uuid": "161de9ec-d4b7-4e4c-85a3-fa9fcda7e071", "counter": 472, "stdout": "\u001b[0;35m77     password: \"{{ wsrep_sst_auth.split(':')[1] }}\"\u001b[0m", "start_line": 450, "end_line": 451, "runner_ident": "a3dde540-a5dd-467d-abf5-69bbb005f07e", "created": "2026-02-16T20:28:17.155281+00:00"}
