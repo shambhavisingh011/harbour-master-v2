@@ -22,7 +22,7 @@
       "fieldConfig": { "defaults": { "unit": "s" } },
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
       "id": 2,
-      "targets": [ { "datasource": { "type": "prometheus", "uid": "prom_ds_phase5" }, "expr": "mysql_slave_status_seconds_behind_master", "legendFormat": "Lag: {{instance}}", "refId": "A" } ],
+      "targets": [ { "datasource": { "type": "prometheus", "uid": "prom_ds_phase5" }, "expr": "mysql_global_status_wsrep_local_recv_queue", "legendFormat": "Lag: {{instance}}", "refId": "A" } ],
       "title": "Async Replication Lag",
       "type": "timeseries"
     },
