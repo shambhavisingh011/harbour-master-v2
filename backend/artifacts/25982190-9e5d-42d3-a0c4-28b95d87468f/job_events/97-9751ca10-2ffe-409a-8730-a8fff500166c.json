@@ -1,0 +1,1 @@
+{"event": "verbose", "uuid": "9751ca10-2ffe-409a-8730-a8fff500166c", "counter": 97, "stdout": "\u001b[0;35m23     repo: \"deb [arch=arm64,amd64] https://archive.mariadb.org/mariadb-{{ mariadb_version }}/repo/ubuntu {{ ansible...\u001b[0m", "start_line": 86, "end_line": 87, "runner_ident": "25982190-9e5d-42d3-a0c4-28b95d87468f", "created": "2026-02-18T05:38:25.154064+00:00"}

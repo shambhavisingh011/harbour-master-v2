@@ -1,0 +1,1 @@
+{"event": "verbose", "uuid": "9bc24ec8-ff99-414a-b294-f75068c562be", "counter": 95, "stdout": "\u001b[0;35m21 - name: Add MariaDB Repository for version {{ mariadb_version }}\u001b[0m", "start_line": 84, "end_line": 85, "runner_ident": "25982190-9e5d-42d3-a0c4-28b95d87468f", "created": "2026-02-18T05:38:25.154064+00:00"}

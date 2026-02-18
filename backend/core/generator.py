@@ -66,7 +66,7 @@ def generate_ansible_files(request_data):
     # --- 3. BUILD THE VARIABLES (extravars.yml) ---
     # Convert Pydantic model to a standard dictionary
     extravars = request_data.model_dump(mode='json')
-    
+    extravars['hcip_value'] = "10.0.0.100"
     # Calculate derived values needed for Galera templates
     ips = [str(node.ip) for node in request_data.galera_nodes]
     extravars['wsrep_cluster_address'] = f"gcomm://{','.join(ips)}"

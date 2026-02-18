@@ -79,7 +79,7 @@
   when: inventory_hostname != groups['galera'][0]
   throttle: 1
   register: node_join
-  ignore_errors: yes  # Allow it to fail so the recovery block can run
+  ignore_errors: yes
 
 - name: "RECOVERY: Wipe corrupted state if Join failed"
   file:
@@ -102,7 +102,76 @@
     - inventory_hostname != groups['galera'][0]
     - node_join is failed
 
-# 7. AUTOMATED HEALTH CHECK & SELF-HEALING
+# 7. SSH & SECURITY HANDSHAKE (Required for LVS Health Checks)
+- name: "SSH: Ensure .ssh directory exists for root"
+  file:
+    path: /root/.ssh
+    state: directory
+    mode: '0700'
+  become: yes
+
+- name: "SSH: Authorize LVS Health Check Key"
+  authorized_key:
+    user: root
+    state: present
+    key: "{{ lookup('file', playbook_dir + '/roles/lvs/files/id_rsa.pub') }}"
+  become: yes
+
+- name: "SSH: Allow root login via key"
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PermitRootLogin'
+    line: 'PermitRootLogin prohibit-password'
+  become: yes
+  notify: Restart SSH
+
+# 8. LVS-DR NETWORKING & HCIP LOGIC
+- name: "LVS-DR: Add VIP to loopback interface"
+  shell: "ip addr add {{ lvs_vip }}/32 dev lo || true"
+  become: yes
+  changed_when: false
+
+- name: "LVS-DR: Apply ARP Suppression"
+  sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    state: present
+  loop:
+    - { key: 'net.ipv4.conf.all.arp_ignore', value: '1' }
+    - { key: 'net.ipv4.conf.all.arp_announce', value: '2' }
+    - { key: 'net.ipv4.conf.lo.arp_ignore', value: '1' }
+    - { key: 'net.ipv4.conf.lo.arp_announce', value: '2' }
+  become: yes
+
+- name: "HCIP: Load dummy network module"
+  modprobe:
+    name: dummy
+    state: present
+  become: yes
+  when: inventory_hostname in groups['galera'][:2]
+
+- name: "HCIP: Create dummy0 network interface"
+  shell: "ip link add dummy0 type dummy || true"
+  become: yes
+  when: inventory_hostname in groups['galera'][:2]
+
+- name: "HCIP: Deploy Management Script"
+  template:
+    src: galera_hcip_manager.sh.j2
+    dest: /usr/local/bin/galera_hcip_manager.sh
+    mode: '0755'
+  become: yes
+  when: inventory_hostname in groups['galera'][:2]
+
+- name: "HCIP: Add Manager to Crontab"
+  cron:
+    name: "Galera HCIP Monitor"
+    minute: "*"
+    job: "/usr/local/bin/galera_hcip_manager.sh"
+  become: yes
+  when: inventory_hostname in groups['galera'][:2]
+
+# 9. Health Check & Sync Verification
 - name: "[Self-Healing] Check MariaDB Service and Cluster State"
   shell: |
     if ! systemctl is-active --quiet mariadb; then
@@ -115,27 +184,7 @@
   changed_when: false
   ignore_errors: yes
 
-- name: "[Self-Healing] Restart MariaDB if Offline or stuck in Initialized"
-  systemd:
-    name: mariadb
-    state: restarted
-  become: yes
-  when: 
-    - inventory_hostname != groups['galera'][0]
-    - (node_status_result.stdout == "OFFLINE" or 
-       node_status_result.stdout == "Initialized" or 
-       node_status_result.stdout == "" or
-       node_status_result.stdout == "LOCKED")
-
-- name: "[Self-Healing] Emergency - Force Primary Component on Node 1"
-  shell: |
-    mariadb -u root -p'{{ wsrep_sst_auth.split(":")[1] }}' -e "SET GLOBAL wsrep_provider_options='pc.bootstrap=YES';"
-  become: yes
-  when: 
-    - inventory_hostname == groups['galera'][0]
-    - (node_status_result.stdout == "Initialized" or node_status_result.stdout == "")
-
-- name: "[Self-Healing] Wait for Node to finish IST/SST and Sync"
+- name: "[Self-Healing] Wait for Node to finish Sync"
   shell: |
     mariadb -u root -p'{{ wsrep_sst_auth.split(":")[1] }}' -N -s -e "SHOW STATUS LIKE 'wsrep_local_state_comment';"
   become: yes
@@ -145,62 +194,7 @@
   delay: 10
   changed_when: false
 
-- name: "Final Verification of Cluster Connectivity"
-  command: >
-    mariadb -u root -p'{{ wsrep_sst_auth.split(":")[1] }}' -e "SELECT 1;"
-  become: yes
-  register: db_ready
-  until: db_ready.rc == 0
-  retries: 10
-  delay: 5
-  no_log: true
-
-# 8. SINGLE-WRITER HCIP LOGIC
-- name: "Ensure dummy network module is loaded"
-  modprobe:
-    name: dummy
-    state: present
-  become: yes
-
-- name: "Create dummy0 network interface"
-  shell: "ip link add dummy0 type dummy || true"
-  become: yes
-
-- name: "Deploy HCIP Management Script"
-  copy:
-    dest: /usr/local/bin/galera_hcip_manager.sh
-    mode: '0755'
-    content: |
-      #!/bin/bash
-      HCIP="10.0.0.100"
-      PASS="{{ wsrep_sst_auth.split(':')[1] }}"
-      
-      STATE=$(mariadb -u root -p"$PASS" -N -s -e "SHOW GLOBAL STATUS LIKE 'wsrep_local_state_comment';" 2>/dev/null | awk '{print $2}')
-      INDEX=$(mariadb -u root -p"$PASS" -N -s -e "SHOW GLOBAL STATUS LIKE 'wsrep_local_index';" 2>/dev/null | awk '{print $2}')
-
-      if [ "$STATE" == "Synced" ] && [ "$INDEX" == "0" ]; then
-          if ! ip addr show dummy0 | grep -q "$HCIP"; then
-              ip addr add $HCIP/32 dev dummy0
-              ip link set dummy0 up
-          fi
-      else
-          ip addr del $HCIP/32 dev dummy0 2>/dev/null
-          ip link set dummy0 down 2>/dev/null
-      fi
-  become: yes
-
-- name: "Run HCIP Manager to initialize state"
-  command: /usr/local/bin/galera_hcip_manager.sh
-  become: yes
-
-- name: "Add HCIP Manager to Crontab for persistence"
-  cron:
-    name: "Galera HCIP Monitor"
-    minute: "*"
-    job: "/usr/local/bin/galera_hcip_manager.sh"
-  become: yes
-
-# 9. Users & Access Management
+# 10. Users & Access Management
 - name: "Create SST User for replication"
   community.mysql.mysql_user:
     name: "{{ wsrep_sst_auth.split(':')[0] }}"
@@ -208,21 +202,6 @@
     priv: "*.*:ALL"
     state: present
     host: "%"
-    login_user: root
-    login_password: "{{ wsrep_sst_auth.split(':')[1] }}"
-    login_unix_socket: /var/run/mysqld/mysqld.sock
-    check_implicit_admin: yes
-  become: yes
-  run_once: true
-
-- name: "Create Replication User for Async Node"
-  community.mysql.mysql_user:
-    name: "{{ repl_user }}"
-    password: "{{ repl_password }}"
-    priv: "*.*:REPLICATION SLAVE"
-    host: "%"
-    state: present
-    column_case_sensitive: false
     login_user: root
     login_password: "{{ wsrep_sst_auth.split(':')[1] }}"
     login_unix_socket: /var/run/mysqld/mysqld.sock
@@ -246,7 +225,3 @@
     - "localhost"
   become: yes
   run_once: true
-  register: root_access_res
-  until: root_access_res is success
-  retries: 5
-  delay: 5

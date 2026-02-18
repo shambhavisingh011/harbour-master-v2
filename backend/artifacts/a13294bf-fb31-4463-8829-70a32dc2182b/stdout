@@ -1,0 +1,231 @@
+
+PLAY [Phase 1 - Prepare All Nodes] *********************************************
+
+TASK [Gathering Facts] *********************************************************
+[1;35m[WARNING]: Host 'db-node-01' is using the discovered Python interpreter at '/usr/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.[0m
+[0;32mok: [db-node-01][0m
+[1;35m[WARNING]: Host 'async-node' is using the discovered Python interpreter at '/usr/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.[0m
+[0;32mok: [async-node][0m
+
+TASK [Wait for apt lock to be released] ****************************************
+[0;33mchanged: [db-node-01][0m
+[0;33mchanged: [async-node][0m
+
+TASK [Install basic utilities] *************************************************
+[0;32mok: [db-node-01][0m
+[0;32mok: [async-node][0m
+
+PLAY [Phase 1 - Prepare All Nodes] *********************************************
+
+TASK [Gathering Facts] *********************************************************
+[1;35m[WARNING]: Host 'db-node-03' is using the discovered Python interpreter at '/usr/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.[0m
+[0;32mok: [db-node-03][0m
+[1;35m[WARNING]: Host 'db-node-02' is using the discovered Python interpreter at '/usr/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.[0m
+[0;32mok: [db-node-02][0m
+
+TASK [Wait for apt lock to be released] ****************************************
+[0;33mchanged: [db-node-02][0m
+[0;33mchanged: [db-node-03][0m
+
+TASK [Install basic utilities] *************************************************
+[0;32mok: [db-node-02][0m
+[0;32mok: [db-node-03][0m
+
+PLAY [Phase 1 - Prepare All Nodes] *********************************************
+
+TASK [Gathering Facts] *********************************************************
+[1;35m[WARNING]: Host 'lvs-node-2' is using the discovered Python interpreter at '/usr/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.[0m
+[0;32mok: [lvs-node-2][0m
+[1;35m[WARNING]: Host 'lvs-node-1' is using the discovered Python interpreter at '/usr/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.[0m
+[0;32mok: [lvs-node-1][0m
+
+TASK [Wait for apt lock to be released] ****************************************
+[0;33mchanged: [lvs-node-1][0m
+[0;33mchanged: [lvs-node-2][0m
+
+TASK [Install basic utilities] *************************************************
+[0;32mok: [lvs-node-2][0m
+[0;32mok: [lvs-node-1][0m
+
+PLAY [Phase 1 - Prepare All Nodes] *********************************************
+
+TASK [Gathering Facts] *********************************************************
+[1;35m[WARNING]: Host 'monitor-node' is using the discovered Python interpreter at '/usr/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.[0m
+[0;32mok: [monitor-node][0m
+
+TASK [Wait for apt lock to be released] ****************************************
+[0;33mchanged: [monitor-node][0m
+
+TASK [Install basic utilities] *************************************************
+[0;32mok: [monitor-node][0m
+
+PLAY [Phase 2 - Setup MariaDB Repositories] ************************************
+
+TASK [Gathering Facts] *********************************************************
+[0;32mok: [db-node-01][0m
+[0;32mok: [db-node-02][0m
+
+TASK [common : Update apt cache] ***********************************************
+[0;33mchanged: [db-node-02][0m
+[0;33mchanged: [db-node-01][0m
+
+TASK [common : Install dependencies] *******************************************
+[0;32mok: [db-node-02][0m
+[0;32mok: [db-node-01][0m
+
+TASK [common : Add MariaDB GPG key] ********************************************
+[0;32mok: [db-node-02][0m
+[0;32mok: [db-node-01][0m
+
+TASK [common : Add MariaDB Repository for version 10.11] ***********************
+[1;35m[WARNING]: Deprecation warnings can be disabled by setting `deprecation_warnings=False` in ansible.cfg.[0m
+[0;35m[DEPRECATION WARNING]: INJECT_FACTS_AS_VARS default to `True` is deprecated, top-level facts will not be auto injected after the change. This feature will be removed from ansible-core version 2.24.[0m
+[0;35mOrigin: /home/ubuntu/harbour-master/backend/ansible/roles/common/tasks/main.yml:23:11[0m
+[0;35m[0m
+[0;35m21 - name: Add MariaDB Repository for version {{ mariadb_version }}[0m
+[0;35m[0m
+[0;32mok: [db-node-01][0m
+[0;32mok: [db-node-02][0m
+
+TASK [common : Update apt cache after adding repo] *****************************
+[0;33mchanged: [db-node-01][0m
+[0;33mchanged: [db-node-02][0m
+
+PLAY [Phase 2 - Setup MariaDB Repositories] ************************************
+
+TASK [Gathering Facts] *********************************************************
+[0;32mok: [db-node-03][0m
+[0;32mok: [async-node][0m
+
+TASK [common : Update apt cache] ***********************************************
+[0;33mchanged: [db-node-03][0m
+[0;33mchanged: [async-node][0m
+
+TASK [common : Install dependencies] *******************************************
+[0;32mok: [db-node-03][0m
+[0;32mok: [async-node][0m
+
+TASK [common : Add MariaDB GPG key] ********************************************
+[0;32mok: [db-node-03][0m
+[0;32mok: [async-node][0m
+
+TASK [common : Add MariaDB Repository for version 10.11] ***********************
+[0;32mok: [db-node-03][0m
+[0;32mok: [async-node][0m
+
+TASK [common : Update apt cache after adding repo] *****************************
+[0;33mchanged: [db-node-03][0m
+[0;33mchanged: [async-node][0m
+
+PLAY [Phase 3 - Build Galera Cluster] ******************************************
+
+TASK [Gathering Facts] *********************************************************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : Install MariaDB Server and Galera dependencies] *****************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : Stop MariaDB to prevent standalone mode conflicts] **************
+[0;33mchanged: [db-node-01][0m
+
+TASK [galera : Disable default bind-address in 50-server.cnf] ******************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : Deploy Galera Configuration] ************************************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : Initialize MariaDB data directory if empty] *********************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : Check if grastate.dat exists] ***********************************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : Set safe_to_bootstrap flag in grastate.dat] *********************
+[0;33mchanged: [db-node-01][0m
+
+TASK [galera : Execute Galera New Cluster command] *****************************
+[0;33mchanged: [db-node-01][0m
+
+TASK [galera : Wait for Primary Node to be ready] ******************************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : Join Secondary Nodes to Cluster] ********************************
+[0;36mskipping: [db-node-01][0m
+
+TASK [galera : RECOVERY: Wipe corrupted state if Join failed] ******************
+[0;36mskipping: [db-node-01] => (item=grastate.dat) [0m
+[0;36mskipping: [db-node-01] => (item=galera.cache) [0m
+[0;36mskipping: [db-node-01][0m
+
+TASK [galera : RETRY: Start MariaDB after state wipe] **************************
+[0;36mskipping: [db-node-01][0m
+
+TASK [galera : [Self-Healing] Check MariaDB Service and Cluster State] *********
+[0;32mok: [db-node-01][0m
+
+TASK [galera : [Self-Healing] Restart MariaDB if Offline or stuck in Initialized] ***
+[0;36mskipping: [db-node-01][0m
+
+TASK [galera : [Self-Healing] Emergency - Force Primary Component on Node 1] ***
+[0;36mskipping: [db-node-01][0m
+
+TASK [galera : [Self-Healing] Wait for Node to finish IST/SST and Sync] ********
+[0;32mok: [db-node-01][0m
+
+TASK [galera : Final Verification of Cluster Connectivity] *********************
+[0;33mchanged: [db-node-01][0m
+
+TASK [galera : Load dummy network module] **************************************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : Create dummy0 network interface] ********************************
+[0;33mchanged: [db-node-01][0m
+
+TASK [galera : Apply LVS-DR ARP Suppression] ***********************************
+[0;35m[DEPRECATION WARNING]: Importing 'to_native' from 'ansible.module_utils._text' is deprecated. This feature will be removed from ansible-core version 2.24. Use ansible.module_utils.common.text.converters instead.[0m
+[0;32mok: [db-node-01] => (item={'key': 'net.ipv4.conf.all.arp_ignore', 'value': '1'})[0m
+[0;32mok: [db-node-01] => (item={'key': 'net.ipv4.conf.all.arp_announce', 'value': '2'})[0m
+[0;32mok: [db-node-01] => (item={'key': 'net.ipv4.conf.lo.arp_ignore', 'value': '1'})[0m
+[0;32mok: [db-node-01] => (item={'key': 'net.ipv4.conf.lo.arp_announce', 'value': '2'})[0m
+
+TASK [galera : Deploy HCIP Management Script] **********************************
+[0;31m[ERROR]: Task failed: Could not find or access 'galera_hcip_manager.sh.j2'[0m
+[0;31mSearched in:[0m
+[0;31m	/home/ubuntu/harbour-master/backend/ansible/roles/galera/templates/galera_hcip_manager.sh.j2[0m
+[0;31m	/home/ubuntu/harbour-master/backend/ansible/roles/galera/galera_hcip_manager.sh.j2[0m
+[0;31m	/home/ubuntu/harbour-master/backend/ansible/roles/galera/tasks/templates/galera_hcip_manager.sh.j2[0m
+[0;31m	/home/ubuntu/harbour-master/backend/ansible/roles/galera/tasks/galera_hcip_manager.sh.j2[0m
+[0;31m	/home/ubuntu/harbour-master/backend/ansible/templates/galera_hcip_manager.sh.j2[0m
+[0;31m	/home/ubuntu/harbour-master/backend/ansible/galera_hcip_manager.sh.j2 on the Ansible Controller.[0m
+[0;31mIf you are using a module and expect the file to exist on the remote, see the remote_src option[0m
+[0;31m[0m
+[0;31mTask failed.[0m
+[0;31mOrigin: /home/ubuntu/harbour-master/backend/ansible/roles/galera/tasks/main.yml:184:3[0m
+[0;31m[0m
+[0;31m182   when: inventory_hostname in [groups['galera'][0], groups['galera'][1]][0m
+[0;31m183[0m
+[0;31m184 - name: "Deploy HCIP Management Script"[0m
+[0;31m      ^ column 3[0m
+[0;31m[0m
+[0;31m<<< caused by >>>[0m
+[0;31m[0m
+[0;31mCould not find or access 'galera_hcip_manager.sh.j2'[0m
+[0;31mSearched in:[0m
+[0;31m	/home/ubuntu/harbour-master/backend/ansible/roles/galera/templates/galera_hcip_manager.sh.j2[0m
+[0;31m	/home/ubuntu/harbour-master/backend/ansible/roles/galera/galera_hcip_manager.sh.j2[0m
+[0;31m	/home/ubuntu/harbour-master/backend/ansible/roles/galera/tasks/templates/galera_hcip_manager.sh.j2[0m
+[0;31m	/home/ubuntu/harbour-master/backend/ansible/roles/galera/tasks/galera_hcip_manager.sh.j2[0m
+[0;31m	/home/ubuntu/harbour-master/backend/ansible/templates/galera_hcip_manager.sh.j2[0m
+[0;31m	/home/ubuntu/harbour-master/backend/ansible/galera_hcip_manager.sh.j2 on the Ansible Controller.[0m
+[0;31mIf you are using a module and expect the file to exist on the remote, see the remote_src option[0m
+[0;31m[0m
+[0;31mfatal: [db-node-01]: FAILED! => {"changed": false, "msg": "Could not find or access 'galera_hcip_manager.sh.j2'\nSearched in:\n\t/home/ubuntu/harbour-master/backend/ansible/roles/galera/templates/galera_hcip_manager.sh.j2\n\t/home/ubuntu/harbour-master/backend/ansible/roles/galera/galera_hcip_manager.sh.j2\n\t/home/ubuntu/harbour-master/backend/ansible/roles/galera/tasks/templates/galera_hcip_manager.sh.j2\n\t/home/ubuntu/harbour-master/backend/ansible/roles/galera/tasks/galera_hcip_manager.sh.j2\n\t/home/ubuntu/harbour-master/backend/ansible/templates/galera_hcip_manager.sh.j2\n\t/home/ubuntu/harbour-master/backend/ansible/galera_hcip_manager.sh.j2 on the Ansible Controller.\nIf you are using a module and expect the file to exist on the remote, see the remote_src option"}[0m
+
+PLAY RECAP *********************************************************************
+[0;33masync-node[0m                 : [0;32mok=9   [0m [0;33mchanged=3   [0m unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+[0;31mdb-node-01[0m                 : [0;32mok=25  [0m [0;33mchanged=8   [0m unreachable=0    [0;31mfailed=1   [0m [0;36mskipped=5   [0m rescued=0    ignored=0   
+[0;33mdb-node-02[0m                 : [0;32mok=9   [0m [0;33mchanged=3   [0m unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+[0;33mdb-node-03[0m                 : [0;32mok=9   [0m [0;33mchanged=3   [0m unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+[0;33mlvs-node-1[0m                 : [0;32mok=3   [0m [0;33mchanged=1   [0m unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+[0;33mlvs-node-2[0m                 : [0;32mok=3   [0m [0;33mchanged=1   [0m unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+[0;33mmonitor-node[0m               : [0;32mok=3   [0m [0;33mchanged=1   [0m unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   

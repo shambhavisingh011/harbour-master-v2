@@ -1,4 +1,24 @@
 ---
+# PHASE 0: Generate Shared Secrets & Keys
+- name: Phase 0 - Infrastructure Handshake Preparation
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Ensure LVS files directory exists
+      file:
+        path: "{{ playbook_dir }}/roles/lvs/files"
+        state: directory
+        mode: '0755'
+
+    - name: Generate SSH keypair for LVS Health Checks
+      openssh_keypair:
+        path: "{{ playbook_dir }}/roles/lvs/files/id_rsa"
+        type: rsa
+        size: 4096
+        force: false  # Do not overwrite existing keys
+      register: key_gen
+
 # PHASE 1: Base Preparation (OS & Repos)
 - name: Phase 1 - Prepare All Nodes
   hosts: all

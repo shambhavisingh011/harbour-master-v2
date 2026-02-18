@@ -18,13 +18,32 @@
     reload: yes
   become: yes
 
-# 3. ADD THE ROUTING LOGIC (The part you asked for)
-# This allows the LVS node to talk to the dummy0 interface on the DB nodes
-- name: Add route to HCIP subnet for health checks
-  shell: "ip route add {{ hcip_value | default('10.0.0.100') }}/32 dev {{ ansible_default_ipv4.interface }} || true"
+# 3. Setup SSH for Health Checks
+# The keys were generated in Phase 0; now we just deploy the private key to LVS nodes
+- name: Ensure .ssh directory exists for root
+  file:
+    path: /root/.ssh
+    state: directory
+    mode: '0700'
   become: yes
 
-# 4. Deploy Keepalived Configuration
+- name: Deploy SSH Private Key for LVS Health Checks
+  copy:
+    src: id_rsa  # Ansible looks in roles/lvs/files/ by default
+    dest: /root/.ssh/id_rsa
+    owner: root
+    group: root
+    mode: '0600'
+  become: yes
+
+# 4. Routing Setup for HCIP
+# Ensures the LVS nodes know how to route traffic to the Floating IP
+- name: Ensure route for HCIP exists (LVS-DR routing)
+  shell: "ip route add {{ hcip_value }}/32 dev {{ ansible_default_ipv4.interface }} || true"
+  become: yes
+  changed_when: false
+
+# 5. Deploy Keepalived Configuration
 - name: Deploy Keepalived configuration from template
   template:
     src: keepalived.conf.j2
@@ -35,7 +54,8 @@
   become: yes
   register: lvs_config
 
-# 5. Restart Keepalived
+# 6. Restart Keepalived
+# Forced restart to ensure the new SSH keys and config are active
 - name: Restart and Enable Keepalived
   service:
     name: keepalived

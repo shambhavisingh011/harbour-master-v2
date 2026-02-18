@@ -1,0 +1,1 @@
+{"event": "verbose", "uuid": "80772b05-fbb7-418b-a2f1-b056993abc88", "counter": 412, "stdout": "\u001b[0;35m22 # This allows the LVS node to talk to the dummy0 interface on the DB nodes\u001b[0m", "start_line": 402, "end_line": 403, "runner_ident": "2a0b0c6e-708f-470c-8439-315d9589491e", "created": "2026-02-17T10:00:39.915934+00:00"}

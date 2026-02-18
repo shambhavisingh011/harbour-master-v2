@@ -1,3 +1,8 @@
+
+# --- Ansible Secrets ---
+**/roles/lvs/files/id_rsa
+**/roles/lvs/files/id_rsa.pub
+
 # Python
 __pycache__/
 *.py[cod]
