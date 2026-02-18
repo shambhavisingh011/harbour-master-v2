@@ -1,42 +1,42 @@
-async_ip: 192.168.64.5
+async_ip: 192.168.64.7
 bind_address: 0.0.0.0
 binlog_expire_logs_seconds: 604800
 binlog_format: ROW
 default_storage_engine: InnoDB
 expire_logs_days: 7
 galera_node_list:
-- id: 16391
-  ip: 192.168.64.7
+- id: 16386
+  ip: 192.168.64.2
   name: db-node-01
-- id: 16392
-  ip: 192.168.64.8
+- id: 16387
+  ip: 192.168.64.3
   name: db-node-02
-- id: 16393
-  ip: 192.168.64.9
+- id: 16388
+  ip: 192.168.64.4
   name: db-node-03
 galera_nodes:
-- ip: 192.168.64.7
+- ip: 192.168.64.2
   node_name: db-node-01
-  server_id: 16391
-- ip: 192.168.64.8
+  server_id: 16386
+- ip: 192.168.64.3
   node_name: db-node-02
-  server_id: 16392
-- ip: 192.168.64.9
+  server_id: 16387
+- ip: 192.168.64.4
   node_name: db-node-03
-  server_id: 16393
+  server_id: 16388
 hcip_value: 10.0.0.100
 innodb_autoinc_lock_mode: 2
 innodb_buffer_pool_instances: 1
 innodb_undo_tablespaces: 3
 lvs_ips:
-- 192.168.64.3
-- 192.168.64.4
+- 192.168.64.5
+- 192.168.64.6
 lvs_vip: 192.168.64.150
 mariadb_version: '10.11'
-monitor_ip: 192.168.64.6
+monitor_ip: 192.168.64.8
 repl_password: ReplicaSecurePass123!
 repl_user: repl_user
-wsrep_cluster_address: gcomm://192.168.64.7,192.168.64.8,192.168.64.9
+wsrep_cluster_address: gcomm://192.168.64.2,192.168.64.3,192.168.64.4
 wsrep_cluster_name: Galera_Cluster
 wsrep_gtid_domain_id: 1
 wsrep_mode: REQUIRED_PRIMARY_KEY,STRICT_REPLICATION

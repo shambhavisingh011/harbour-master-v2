@@ -161,13 +161,28 @@
     dest: /usr/local/bin/galera_hcip_manager.sh
     mode: '0755'
   become: yes
-  when: inventory_hostname in groups['galera'][:2]
+  notify: Restart HCIP Service
 
-- name: "HCIP: Add Manager to Crontab"
+- name: "HCIP: Deploy Systemd Service Unit"
+  template:
+    src: galera-hcip.service.j2
+    dest: /etc/systemd/system/galera-hcip.service
+  become: yes
+  notify: 
+    - Reload Systemd        
+    - Restart HCIP Service
+
+- name: "HCIP: Remove old Cron Job"
   cron:
     name: "Galera HCIP Monitor"
-    minute: "*"
-    job: "/usr/local/bin/galera_hcip_manager.sh"
+    state: absent
+  become: yes
+
+- name: "HCIP: Start and Enable HCIP Service"
+  systemd:
+    name: galera-hcip
+    state: started
+    enabled: yes
   become: yes
   when: inventory_hostname in groups['galera'][:2]
 

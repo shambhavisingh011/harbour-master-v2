@@ -4,3 +4,14 @@
     name: ssh
     state: restarted
   become: yes
+
+- name: Reload Systemd
+  systemd:
+    daemon_reload: yes
+  become: yes
+
+- name: Restart HCIP Service
+  systemd:
+    name: galera-hcip
+    state: restarted
+  become: yes

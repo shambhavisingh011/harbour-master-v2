@@ -1,44 +1,37 @@
 #!/bin/bash
-# Managed by Ansible - Harbour Master Cluster
 HCIP="{{ hcip_value }}"
 PASS="{{ wsrep_sst_auth.split(':')[1] }}"
 
-# 1. Identity Check
-{% if inventory_hostname in groups['galera'][:2] %}
-IS_WRITER_CANDIDATE=true
-{% else %}
-IS_WRITER_CANDIDATE=false
-{% endif %}
-
-if [ "$IS_WRITER_CANDIDATE" = false ]; then
-    ip addr del $HCIP/32 dev dummy0 2>/dev/null
-    ip link set dummy0 down 2>/dev/null
-    exit 0
-fi
-
-# 2. Service Check (The "Dead DB" Guard)
-# If MariaDB isn't running, we MUST drop the HCIP so the LVS health check fails
-if ! systemctl is-active --quiet mariadb; then
+# Cleanup function if the script itself is killed
+cleanup() {
+    echo "Caught signal, stripping HCIP $HCIP..."
     ip addr del $HCIP/32 dev dummy0 2>/dev/null
     exit 0
-fi
+}
 
-# 3. Status Check
-# Fetching Galera sync state and local index (Index 0 is the primary writer)
-STATE=$(mariadb -u root -p"$PASS" -N -s -e "SHOW GLOBAL STATUS LIKE 'wsrep_local_state_comment';" 2>/dev/null | awk '{print $2}')
-INDEX=$(mariadb -u root -p"$PASS" -N -s -e "SHOW GLOBAL STATUS LIKE 'wsrep_local_index';" 2>/dev/null | awk '{print $2}')
+trap cleanup SIGINT SIGTERM
 
-# 4. Activation Logic
-if [ "$STATE" == "Synced" ] && [ "$INDEX" == "0" ]; then
-    # If I am the primary and don't have the IP, take it
-    if ! ip addr show dummy0 | grep -q "$HCIP"; then
-        ip addr add $HCIP/32 dev dummy0
-        ip link set dummy0 up
-        # LVS-DR ARP Suppression (Double check settings)
-        sysctl -w net.ipv4.conf.all.arp_ignore=1 >/dev/null
-        sysctl -w net.ipv4.conf.all.arp_announce=2 >/dev/null
+echo "Starting Continuous HCIP Manager..."
+
+while true; do
+    # 1. Check if MariaDB is even responding
+    if ! mariadb -u root -p"$PASS" -e "status" >/dev/null 2>&1; then
+        echo "MariaDB connection failed. Stripping HCIP..."
+        ip addr del $HCIP/32 dev dummy0 2>/dev/null
+    else
+        # 2. If it is responding, check if it's the Primary (Index 0)
+        STATE=$(mariadb -u root -p"$PASS" -rs -e "SHOW GLOBAL STATUS LIKE 'wsrep_local_state_comment';" | awk '{print $2}')
+        INDEX=$(mariadb -u root -p"$PASS" -rs -e "SHOW GLOBAL STATUS LIKE 'wsrep_local_index';" | awk '{print $2}')
+
+        if [ "$STATE" == "Synced" ] && [ "$INDEX" == "0" ]; then
+            if ! ip addr show dummy0 | grep -q "$HCIP"; then
+                ip addr add $HCIP/32 dev dummy0
+                ip link set dummy0 up
+            fi
+        else
+            # Not Index 0 or not Synced? Remove the IP immediately
+            ip addr del $HCIP/32 dev dummy0 2>/dev/null
+        fi
     fi
-else
-    # If I am no longer primary or not synced, release the IP
-    ip addr del $HCIP/32 dev dummy0 2>/dev/null
-fi
+    sleep 2
+done

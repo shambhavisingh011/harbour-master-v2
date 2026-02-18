@@ -73,7 +73,7 @@ function App() {
   const handleLoginSubmit = (e) => {
     e.preventDefault();
     // Simple mock logic - replace with your backend auth call
-    if (loginData.username === 'admin' && loginData.password === 'password123') {
+    if (loginData.username === 'admin' && loginData.password === 'admin') {
       setIsAuthenticated(true);
       setLoginError('');
     } else {
