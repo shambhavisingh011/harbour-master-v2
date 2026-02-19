@@ -11,30 +11,37 @@
 
 - name: "[Gatekeeper] Check Galera Sync Status"
   shell: |
-    # Using SST password as it is guaranteed to be in scope
     PASS="{{ wsrep_sst_auth.split(':')[1] }}"
-    if mariadb -u root -p"$PASS" -e "SHOW STATUS LIKE 'wsrep_local_state_comment';" | grep -q 'wsrep_local_state_comment'; then
-       mariadb -u root -p"$PASS" -N -s -e "SHOW STATUS LIKE 'wsrep_local_state_comment';" | awk '{print $2}'
+    # Check if we can even talk to MariaDB first
+    if ! mariadb -u root -p"$PASS" -e "status" >/dev/null 2>&1; then
+        echo "OFFLINE"
     else
-       echo "Standalone"
+        STATUS=$(mariadb -u root -p"$PASS" -N -s -e "SHOW STATUS LIKE 'wsrep_local_state_comment';" | awk '{print $2}')
+        echo "${STATUS:-Standalone}"
     fi
   become: yes
   register: cluster_status
+  # Only run on Galera nodes; Async and others skip
+  when: inventory_hostname in groups['galera']
   until: cluster_status.stdout == "Synced" or cluster_status.stdout == "Standalone"
   retries: 10
   delay: 5
   ignore_errors: yes
 
-- name: "[Recovery] Force Bootstrap on db-01 if stuck"
+- name: "[Recovery] Force Bootstrap on Primary Node if stuck"
   shell: |
     PASS="{{ wsrep_sst_auth.split(':')[1] }}"
-    mariadb -u root -p"$PASS" -e "SET GLOBAL wsrep_provider_options='pc.bootstrap=YES';"
-  become: yes
+    STATE=$(mariadb -u root -p"$PASS" -N -s -e "SHOW STATUS LIKE 'wsrep_local_state';" | awk '{print $2}')
+    if [ "$STATE" == "NON-PRIMARY" ]; then
+       mariadb -u root -p"$PASS" -e "SET GLOBAL wsrep_provider_options='pc.bootstrap=YES';"
+    fi
+  # Dynamically target the first node of the galera group
   when: 
     - inventory_hostname == groups['galera'][0]
     - cluster_status.stdout is defined
-    - cluster_status.stdout == "Initialized"
-  # This acts like your manual restart by forcing db-01 to form a Primary Component
+    - cluster_status.stdout != "Synced"
+    - cluster_status.stdout != "Standalone"
+  ignore_errors: yes
 
 - name: "[Gatekeeper] Final Wait for Sync after Recovery"
   shell: |
@@ -46,6 +53,7 @@
   retries: 15
   delay: 10
   when: 
+    - inventory_hostname in groups['galera']
     - cluster_status.stdout is defined 
     - cluster_status.stdout != "Synced"
     - cluster_status.stdout != "Standalone"
@@ -57,12 +65,10 @@
     priv: "*.*:PROCESS,REPLICATION CLIENT,SELECT"
     state: present
     column_case_sensitive: false 
-    # --- FIX FOR IDEMPOTENCY ---
     login_user: root
     login_password: "{{ wsrep_sst_auth.split(':')[1] }}"
     login_unix_socket: /var/run/mysqld/mysqld.sock
     check_implicit_admin: yes
-    # ---------------------------
   become: yes
   # Apply to Galera nodes and the Async node
   when: inventory_hostname in (groups['galera'] + groups['async'] | default([]))
@@ -101,10 +107,9 @@
   loop:
     - prometheus-node-exporter
     - prometheus-mysqld-exporter
-  # Only restart if the config actually changed to avoid unnecessary downtime
   when: 
     - inventory_hostname in (groups['galera'] + groups['async'] | default([]))
-    - exporter_cfg.changed or exporter_flags.changed
+    - (exporter_cfg.changed or exporter_flags.changed)
 
 - name: Ensure Node Exporter is active on non-DB nodes
   systemd:

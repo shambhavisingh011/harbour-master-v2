@@ -1,0 +1,1 @@
+{"event": "verbose", "uuid": "8ea000a1-296a-439b-9fc6-d5a557470184", "counter": 459, "stdout": "\u001b[0;35m40 # Ensures the LVS nodes know how to route traffic to the Floating IP\u001b[0m", "start_line": 435, "end_line": 436, "runner_ident": "8a781df2-1842-4fc0-9a9d-f427ff94ddca", "created": "2026-02-19T10:06:06.349648+00:00"}
