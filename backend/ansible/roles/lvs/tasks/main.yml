@@ -9,7 +9,7 @@
     update_cache: yes
   become: yes
 
-# 2. Enable IP Forwarding (Crucial for LVS)
+# 2. Enable IP Forwarding
 - name: Enable IPv4 forwarding
   sysctl:
     name: net.ipv4.ip_forward
@@ -19,7 +19,6 @@
   become: yes
 
 # 3. Setup SSH for Health Checks
-# The keys were generated in Phase 0; now we just deploy the private key to LVS nodes
 - name: Ensure .ssh directory exists for root
   file:
     path: /root/.ssh
@@ -29,19 +28,30 @@
 
 - name: Deploy SSH Private Key for LVS Health Checks
   copy:
-    src: id_rsa  # Ansible looks in roles/lvs/files/ by default
+    src: id_rsa  
     dest: /root/.ssh/id_rsa
     owner: root
     group: root
     mode: '0600'
   become: yes
 
-# 4. Routing Setup for HCIP
-# Ensures the LVS nodes know how to route traffic to the Floating IP
-- name: Ensure route for HCIP exists (LVS-DR routing)
-  shell: "ip route add {{ hcip_value }}/32 dev {{ ansible_default_ipv4.interface }} || true"
+# 4. Deploy Health Check Script
+# FIX: Using 'template' style or escaping the $1 is better to prevent Ansible from misinterpreting it.
+- name: Deploy LVS Health Check script
+  copy:
+    content: |
+      #!/bin/bash
+      # Usage: ./check_hcip_ssh.sh <DB_IP>
+      # Check if dummy0 has the HCIP via SSH
+      # Added -o BatchMode=yes to ensure it never hangs waiting for a password
+      ssh -q -o ConnectTimeout=2 \
+          -o StrictHostKeyChecking=no \
+          -o UserKnownHostsFile=/dev/null \
+          -o BatchMode=yes \
+          root@$1 "ip addr show dummy0 | grep -q {{ hcip_value }}"
+    dest: /usr/local/bin/check_hcip_ssh.sh
+    mode: '0755'
   become: yes
-  changed_when: false
 
 # 5. Deploy Keepalived Configuration
 - name: Deploy Keepalived configuration from template
@@ -52,13 +62,12 @@
     group: root
     mode: '0644'
   become: yes
-  register: lvs_config
+  notify: Restart Keepalived
 
-# 6. Restart Keepalived
-# Forced restart to ensure the new SSH keys and config are active
-- name: Restart and Enable Keepalived
+# 6. Ensure Keepalived is started
+- name: Start and Enable Keepalived
   service:
     name: keepalived
-    state: restarted
+    state: started
     enabled: yes
   become: yes

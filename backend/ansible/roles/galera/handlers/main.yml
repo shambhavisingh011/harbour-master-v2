@@ -10,8 +10,12 @@
     daemon_reload: yes
   become: yes
 
-- name: Restart HCIP Service
-  systemd:
-    name: galera-hcip
+- name: Restart Keepalived
+  service:
+    name: keepalived
     state: restarted
   become: yes
+
+- name: Restart HCIP Service
+  debug:
+    msg: "Legacy HCIP Service Handler - No longer used"

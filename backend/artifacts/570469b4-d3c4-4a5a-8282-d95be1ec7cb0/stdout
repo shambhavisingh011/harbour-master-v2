@@ -1,0 +1,8 @@
+[0;31m[ERROR]: 'register' is not a valid attribute for a Block[0m
+[0;31mOrigin: /home/ubuntu/harbour-master/backend/ansible/roles/galera/tasks/main.yml:100:3[0m
+[0;31m[0m
+[0;31m 98         timeout: 60[0m
+[0;31m 99   become: yes[0m
+[0;31m100   register: bootstrap_done[0m
+[0;31m      ^ column 3[0m
+[0;31m[0m

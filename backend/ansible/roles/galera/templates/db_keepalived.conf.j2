@@ -1,0 +1,36 @@
+vrrp_script chk_galera {
+    script "/usr/local/sbin/galera_healthcheck.sh"
+    interval 2
+    timeout 2
+    fall 3
+    rise 2
+}
+
+vrrp_instance GHC1 {
+    state BACKUP
+    interface {{ ansible_default_ipv4.interface }}
+    virtual_router_id 51
+    # Higher priority for db-01 so it wins ONLY the first time or if both are fresh
+    priority {{ 110 if inventory_hostname == groups['galera'][0] else 100 }}
+    advert_int 1
+    
+    # Critical: Do not grab the IP back if the other node is currently Master
+    nopreempt
+
+    unicast_src_ip {{ ansible_default_ipv4.address }}
+    unicast_peer {
+        {% for host in groups['galera'][:2] %}
+        {% if host != inventory_hostname %}
+        {{ hostvars[host]['ansible_default_ipv4']['address'] }}
+        {% endif %}
+        {% endfor %}
+    }
+
+    virtual_ipaddress {
+        {{ hcip_value }}/32 dev dummy0
+    }
+
+    track_script {
+        chk_galera
+    }
+}

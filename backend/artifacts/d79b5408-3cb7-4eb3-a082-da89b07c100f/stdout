@@ -1,0 +1,216 @@
+
+PLAY [Phase 0 - Infrastructure Handshake Preparation] **************************
+
+TASK [Ensure LVS files directory exists] ***************************************
+[0;32mok: [localhost][0m
+
+TASK [Generate SSH keypair for LVS Health Checks] ******************************
+[0;32mok: [localhost][0m
+
+PLAY [Phase 1 - Prepare All Nodes] *********************************************
+
+TASK [Gathering Facts] *********************************************************
+[1;35m[WARNING]: Host 'db-node-01' is using the discovered Python interpreter at '/usr/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.[0m
+[0;32mok: [db-node-01][0m
+[1;35m[WARNING]: Host 'async-node' is using the discovered Python interpreter at '/usr/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.[0m
+[0;32mok: [async-node][0m
+
+TASK [Wait for apt lock to be released] ****************************************
+[0;33mchanged: [async-node][0m
+[0;33mchanged: [db-node-01][0m
+
+TASK [Install basic utilities] *************************************************
+[0;32mok: [async-node][0m
+[0;32mok: [db-node-01][0m
+
+PLAY [Phase 1 - Prepare All Nodes] *********************************************
+
+TASK [Gathering Facts] *********************************************************
+[1;35m[WARNING]: Host 'db-node-02' is using the discovered Python interpreter at '/usr/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.[0m
+[0;32mok: [db-node-02][0m
+[1;35m[WARNING]: Host 'db-node-03' is using the discovered Python interpreter at '/usr/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.[0m
+[0;32mok: [db-node-03][0m
+
+TASK [Wait for apt lock to be released] ****************************************
+[0;33mchanged: [db-node-03][0m
+[0;33mchanged: [db-node-02][0m
+
+TASK [Install basic utilities] *************************************************
+[0;32mok: [db-node-03][0m
+[0;32mok: [db-node-02][0m
+
+PLAY [Phase 1 - Prepare All Nodes] *********************************************
+
+TASK [Gathering Facts] *********************************************************
+[1;35m[WARNING]: Host 'lvs-node-2' is using the discovered Python interpreter at '/usr/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.[0m
+[0;32mok: [lvs-node-2][0m
+[1;35m[WARNING]: Host 'lvs-node-1' is using the discovered Python interpreter at '/usr/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.[0m
+[0;32mok: [lvs-node-1][0m
+
+TASK [Wait for apt lock to be released] ****************************************
+[0;33mchanged: [lvs-node-1][0m
+[0;33mchanged: [lvs-node-2][0m
+
+TASK [Install basic utilities] *************************************************
+[0;32mok: [lvs-node-2][0m
+[0;32mok: [lvs-node-1][0m
+
+PLAY [Phase 1 - Prepare All Nodes] *********************************************
+
+TASK [Gathering Facts] *********************************************************
+[1;35m[WARNING]: Host 'monitor-node' is using the discovered Python interpreter at '/usr/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.[0m
+[0;32mok: [monitor-node][0m
+
+TASK [Wait for apt lock to be released] ****************************************
+[0;33mchanged: [monitor-node][0m
+
+TASK [Install basic utilities] *************************************************
+[0;32mok: [monitor-node][0m
+
+PLAY [Phase 2 - Setup MariaDB Repositories] ************************************
+
+TASK [Gathering Facts] *********************************************************
+[0;32mok: [db-node-01][0m
+[0;32mok: [db-node-02][0m
+
+TASK [common : Check if MariaDB is already installed] **************************
+[0;32mok: [db-node-02][0m
+[0;32mok: [db-node-01][0m
+
+TASK [common : Extract installed version string] *******************************
+[0;32mok: [db-node-01][0m
+[0;32mok: [db-node-02][0m
+
+TASK [common : Block execution if versions mismatch] ***************************
+[0;36mskipping: [db-node-01][0m
+[0;36mskipping: [db-node-02][0m
+
+TASK [common : Update apt cache] ***********************************************
+[0;32mok: [db-node-01][0m
+[0;32mok: [db-node-02][0m
+
+TASK [common : Install dependencies] *******************************************
+[0;32mok: [db-node-01][0m
+[0;32mok: [db-node-02][0m
+
+TASK [common : Add MariaDB GPG key] ********************************************
+[0;32mok: [db-node-02][0m
+[0;32mok: [db-node-01][0m
+
+TASK [common : Add MariaDB Repository for version 10.11] ***********************
+[0;35m[0m
+[0;32mok: [db-node-01][0m
+[0;32mok: [db-node-02][0m
+
+TASK [common : Update apt cache after adding repo] *****************************
+[0;36mskipping: [db-node-01][0m
+[0;36mskipping: [db-node-02][0m
+
+PLAY [Phase 2 - Setup MariaDB Repositories] ************************************
+
+TASK [Gathering Facts] *********************************************************
+[0;32mok: [db-node-03][0m
+[0;32mok: [async-node][0m
+
+TASK [common : Check if MariaDB is already installed] **************************
+[0;32mok: [db-node-03][0m
+[0;32mok: [async-node][0m
+
+TASK [common : Extract installed version string] *******************************
+[0;32mok: [db-node-03][0m
+[0;32mok: [async-node][0m
+
+TASK [common : Block execution if versions mismatch] ***************************
+[0;36mskipping: [db-node-03][0m
+[0;36mskipping: [async-node][0m
+
+TASK [common : Update apt cache] ***********************************************
+[0;32mok: [db-node-03][0m
+[0;32mok: [async-node][0m
+
+TASK [common : Install dependencies] *******************************************
+[0;32mok: [db-node-03][0m
+[0;32mok: [async-node][0m
+
+TASK [common : Add MariaDB GPG key] ********************************************
+[0;32mok: [db-node-03][0m
+[0;32mok: [async-node][0m
+
+TASK [common : Add MariaDB Repository for version 10.11] ***********************
+[0;32mok: [db-node-03][0m
+[0;32mok: [async-node][0m
+
+TASK [common : Update apt cache after adding repo] *****************************
+[0;36mskipping: [db-node-03][0m
+[0;36mskipping: [async-node][0m
+
+PLAY [Phase 3 - Build Galera Cluster] ******************************************
+
+TASK [Gathering Facts] *********************************************************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : DISCOVERY: Audit all nodes (Pre-Flight)] ************************
+[0;32mok: [db-node-01] => (item=db-node-01)[0m
+[0;32mok: [db-node-01 -> db-node-02(192.168.64.3)] => (item=db-node-02)[0m
+[0;32mok: [db-node-01 -> db-node-03(192.168.64.4)] => (item=db-node-03)[0m
+
+TASK [galera : DISCOVERY: Check if MariaDB is installed] ***********************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : DISCOVERY: Check local service status] **************************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : DISCOVERY: Check local Galera state] ****************************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : DISCOVERY: Get Sequence Number (GTID) from grastate] ************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : DISCOVERY: Check HCIP ownership] ********************************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : LOGIC: Set Local Discovery Facts] *******************************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : LOGIC: Determine best Bootstrap node (Last Man Standing)] *******
+[0;31m[ERROR]: Task failed: Finalization of task args for 'ansible.builtin.set_fact' failed: Error while resolving value for 'best_bootstrap_node': object of type 'str' has no attribute 'hostvars[item]'[0m
+[0;31m[0m
+[0;31mTask failed.[0m
+[0;31mOrigin: /home/ubuntu/harbour-master/backend/ansible/roles/galera/tasks/main.yml:55:3[0m
+[0;31m[0m
+[0;31m53     seq_no: "{{ seqno_check.stdout | default('-1') | trim | int }}"[0m
+[0;31m54[0m
+[0;31m55 - name: "LOGIC: Determine best Bootstrap node (Last Man Standing)"[0m
+[0;31m     ^ column 3[0m
+[0;31m[0m
+[0;31m<<< caused by >>>[0m
+[0;31m[0m
+[0;31mFinalization of task args for 'ansible.builtin.set_fact' failed.[0m
+[0;31mOrigin: /home/ubuntu/harbour-master/backend/ansible/roles/galera/tasks/main.yml:56:3[0m
+[0;31m[0m
+[0;31m54[0m
+[0;31m55 - name: "LOGIC: Determine best Bootstrap node (Last Man Standing)"[0m
+[0;31m56   set_fact:[0m
+[0;31m     ^ column 3[0m
+[0;31m[0m
+[0;31m<<< caused by >>>[0m
+[0;31m[0m
+[0;31mError while resolving value for 'best_bootstrap_node': object of type 'str' has no attribute 'hostvars[item]'[0m
+[0;31mOrigin: /home/ubuntu/harbour-master/backend/ansible/roles/galera/tasks/main.yml:58:26[0m
+[0;31m[0m
+[0;31m56   set_fact:[0m
+[0;31m57     # Look at all nodes to find the highest seq_no[0m
+[0;31m58     best_bootstrap_node: "{{ groups['galera'] | sort(attribute='hostvars[item].seq_no', reverse=True) | first }}"[0m
+[0;31m                            ^ column 26[0m
+[0;31m[0m
+[0;31mfatal: [db-node-01]: FAILED! => {"changed": false, "msg": "Task failed: Finalization of task args for 'ansible.builtin.set_fact' failed: Error while resolving value for 'best_bootstrap_node': object of type 'str' has no attribute 'hostvars[item]'"}[0m
+
+PLAY RECAP *********************************************************************
+[0;33masync-node[0m                 : [0;32mok=10  [0m [0;33mchanged=1   [0m unreachable=0    failed=0    [0;36mskipped=2   [0m rescued=0    ignored=0   
+[0;31mdb-node-01[0m                 : [0;32mok=18  [0m [0;33mchanged=1   [0m unreachable=0    [0;31mfailed=1   [0m [0;36mskipped=2   [0m rescued=0    ignored=0   
+[0;33mdb-node-02[0m                 : [0;32mok=10  [0m [0;33mchanged=1   [0m unreachable=0    failed=0    [0;36mskipped=2   [0m rescued=0    ignored=0   
+[0;33mdb-node-03[0m                 : [0;32mok=10  [0m [0;33mchanged=1   [0m unreachable=0    failed=0    [0;36mskipped=2   [0m rescued=0    ignored=0   
+[0;32mlocalhost[0m                  : [0;32mok=2   [0m changed=0    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+[0;33mlvs-node-1[0m                 : [0;32mok=3   [0m [0;33mchanged=1   [0m unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+[0;33mlvs-node-2[0m                 : [0;32mok=3   [0m [0;33mchanged=1   [0m unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+[0;33mmonitor-node[0m               : [0;32mok=3   [0m [0;33mchanged=1   [0m unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   

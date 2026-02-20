@@ -1,0 +1,611 @@
+
+PLAY [Phase 0 - Infrastructure Handshake Preparation] **************************
+
+TASK [Ensure LVS files directory exists] ***************************************
+[0;32mok: [localhost][0m
+
+TASK [Generate SSH keypair for LVS Health Checks] ******************************
+[0;32mok: [localhost][0m
+
+PLAY [Phase 1 - Prepare All Nodes] *********************************************
+
+TASK [Gathering Facts] *********************************************************
+[1;35m[WARNING]: Host 'db-node-01' is using the discovered Python interpreter at '/usr/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.[0m
+[0;32mok: [db-node-01][0m
+[1;35m[WARNING]: Host 'async-node' is using the discovered Python interpreter at '/usr/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.[0m
+[0;32mok: [async-node][0m
+
+TASK [Wait for apt lock to be released] ****************************************
+[0;33mchanged: [async-node][0m
+[0;33mchanged: [db-node-01][0m
+
+TASK [Install basic utilities] *************************************************
+[0;32mok: [db-node-01][0m
+[0;32mok: [async-node][0m
+
+PLAY [Phase 1 - Prepare All Nodes] *********************************************
+
+TASK [Gathering Facts] *********************************************************
+[1;35m[WARNING]: Host 'db-node-03' is using the discovered Python interpreter at '/usr/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.[0m
+[0;32mok: [db-node-03][0m
+[1;35m[WARNING]: Host 'db-node-02' is using the discovered Python interpreter at '/usr/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.[0m
+[0;32mok: [db-node-02][0m
+
+TASK [Wait for apt lock to be released] ****************************************
+[0;33mchanged: [db-node-02][0m
+[0;33mchanged: [db-node-03][0m
+
+TASK [Install basic utilities] *************************************************
+[0;32mok: [db-node-03][0m
+[0;32mok: [db-node-02][0m
+
+PLAY [Phase 1 - Prepare All Nodes] *********************************************
+
+TASK [Gathering Facts] *********************************************************
+[1;35m[WARNING]: Host 'lvs-node-1' is using the discovered Python interpreter at '/usr/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.[0m
+[0;32mok: [lvs-node-1][0m
+[1;35m[WARNING]: Host 'lvs-node-2' is using the discovered Python interpreter at '/usr/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.[0m
+[0;32mok: [lvs-node-2][0m
+
+TASK [Wait for apt lock to be released] ****************************************
+[0;33mchanged: [lvs-node-1][0m
+[0;33mchanged: [lvs-node-2][0m
+
+TASK [Install basic utilities] *************************************************
+[0;32mok: [lvs-node-1][0m
+[0;32mok: [lvs-node-2][0m
+
+PLAY [Phase 1 - Prepare All Nodes] *********************************************
+
+TASK [Gathering Facts] *********************************************************
+[1;35m[WARNING]: Host 'monitor-node' is using the discovered Python interpreter at '/usr/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.[0m
+[0;32mok: [monitor-node][0m
+
+TASK [Wait for apt lock to be released] ****************************************
+[0;33mchanged: [monitor-node][0m
+
+TASK [Install basic utilities] *************************************************
+[0;32mok: [monitor-node][0m
+
+PLAY [Phase 2 - Setup MariaDB Repositories] ************************************
+
+TASK [Gathering Facts] *********************************************************
+[0;32mok: [db-node-02][0m
+[0;32mok: [db-node-01][0m
+
+TASK [common : Check if MariaDB is already installed] **************************
+[0;32mok: [db-node-01][0m
+[0;32mok: [db-node-02][0m
+
+TASK [common : Extract installed version string] *******************************
+[0;32mok: [db-node-01][0m
+[0;32mok: [db-node-02][0m
+
+TASK [common : Block execution if versions mismatch] ***************************
+[0;36mskipping: [db-node-01][0m
+[0;36mskipping: [db-node-02][0m
+
+TASK [common : Update apt cache] ***********************************************
+[0;32mok: [db-node-02][0m
+[0;32mok: [db-node-01][0m
+
+TASK [common : Install dependencies] *******************************************
+[0;32mok: [db-node-01][0m
+[0;32mok: [db-node-02][0m
+
+TASK [common : Add MariaDB GPG key] ********************************************
+[0;32mok: [db-node-01][0m
+[0;32mok: [db-node-02][0m
+
+TASK [common : Add MariaDB Repository for version 10.11] ***********************
+[1;35m[WARNING]: Deprecation warnings can be disabled by setting `deprecation_warnings=False` in ansible.cfg.[0m
+[0;35m[0m
+[0;32mok: [db-node-02][0m
+[0;32mok: [db-node-01][0m
+
+TASK [common : Update apt cache after adding repo] *****************************
+[0;36mskipping: [db-node-01][0m
+[0;36mskipping: [db-node-02][0m
+
+PLAY [Phase 2 - Setup MariaDB Repositories] ************************************
+
+TASK [Gathering Facts] *********************************************************
+[0;32mok: [db-node-03][0m
+[0;32mok: [async-node][0m
+
+TASK [common : Check if MariaDB is already installed] **************************
+[0;32mok: [db-node-03][0m
+[0;32mok: [async-node][0m
+
+TASK [common : Extract installed version string] *******************************
+[0;32mok: [db-node-03][0m
+[0;32mok: [async-node][0m
+
+TASK [common : Block execution if versions mismatch] ***************************
+[0;36mskipping: [db-node-03][0m
+[0;36mskipping: [async-node][0m
+
+TASK [common : Update apt cache] ***********************************************
+[0;32mok: [db-node-03][0m
+[0;32mok: [async-node][0m
+
+TASK [common : Install dependencies] *******************************************
+[0;32mok: [db-node-03][0m
+[0;32mok: [async-node][0m
+
+TASK [common : Add MariaDB GPG key] ********************************************
+[0;32mok: [db-node-03][0m
+[0;32mok: [async-node][0m
+
+TASK [common : Add MariaDB Repository for version 10.11] ***********************
+[0;32mok: [db-node-03][0m
+[0;32mok: [async-node][0m
+
+TASK [common : Update apt cache after adding repo] *****************************
+[0;36mskipping: [db-node-03][0m
+[0;36mskipping: [async-node][0m
+
+PLAY [Phase 3 - Build Galera Cluster] ******************************************
+
+TASK [Gathering Facts] *********************************************************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : DISCOVERY: Audit all nodes (Pre-Flight)] ************************
+[0;32mok: [db-node-01] => (item=db-node-01)[0m
+[0;32mok: [db-node-01 -> db-node-02(192.168.64.3)] => (item=db-node-02)[0m
+[0;32mok: [db-node-01 -> db-node-03(192.168.64.4)] => (item=db-node-03)[0m
+
+TASK [galera : DISCOVERY: Check if MariaDB is installed] ***********************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : DISCOVERY: Check local Galera state] ****************************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : LOGIC: Set Discovery Facts] *************************************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : INSTALL: MariaDB Packages] **************************************
+[0;36mskipping: [db-node-01][0m
+
+TASK [galera : CONFIG: Deploy Galera Configuration] ****************************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : STOP: Kill standalone or broken MariaDB processes] **************
+[0;36mskipping: [db-node-01][0m
+
+TASK [galera : Force safe_to_bootstrap] ****************************************
+[0;36mskipping: [db-node-01][0m
+
+TASK [galera : Initialize Galera New Cluster] **********************************
+[0;36mskipping: [db-node-01][0m
+
+TASK [galera : CASE B: Join Existing Cluster] **********************************
+[0;36mskipping: [db-node-01][0m
+
+TASK [galera : LVS-DR: Loopback VIP] *******************************************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : HCIP: Interface dummy0 Setup] ***********************************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : HCIP: Deploy Keepalived Files] **********************************
+[0;32mok: [db-node-01] => (item={'src': 'galera_hcip_manager.sh.j2', 'dest': '/usr/local/sbin/galera_healthcheck.sh', 'mode': '0755'})[0m
+[0;35m[0m
+[0;32mok: [db-node-01] => (item={'src': 'db_keepalived.conf.j2', 'dest': '/etc/keepalived/keepalived.conf', 'mode': '0644'})[0m
+
+TASK [galera : HCIP: Ensure Keepalived service] ********************************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : WAIT: Ensure node is Synced before finishing] *******************
+[0;36mskipping: [db-node-01][0m
+
+TASK [galera : USERS: Setup Cluster Access] ************************************
+[0;35m[DEPRECATION WARNING]: Importing 'to_native' from 'ansible.module_utils._text' is deprecated. This feature will be removed from ansible-core version 2.24. Use ansible.module_utils.common.text.converters instead.[0m
+[0;32mok: [db-node-01] => (item={'name': 'sst_user', 'host': '%'})[0m
+[0;32mok: [db-node-01] => (item={'name': 'root', 'host': '%'})[0m
+[0;32mok: [db-node-01] => (item={'name': 'root', 'host': 'localhost'})[0m
+
+PLAY [Phase 3 - Build Galera Cluster] ******************************************
+
+TASK [Gathering Facts] *********************************************************
+[0;32mok: [db-node-02][0m
+
+TASK [galera : DISCOVERY: Audit all nodes (Pre-Flight)] ************************
+[0;32mok: [db-node-02 -> db-node-01(192.168.64.2)] => (item=db-node-01)[0m
+[0;32mok: [db-node-02] => (item=db-node-02)[0m
+[0;32mok: [db-node-02 -> db-node-03(192.168.64.4)] => (item=db-node-03)[0m
+
+TASK [galera : DISCOVERY: Check if MariaDB is installed] ***********************
+[0;32mok: [db-node-02][0m
+
+TASK [galera : DISCOVERY: Check local Galera state] ****************************
+[0;32mok: [db-node-02][0m
+
+TASK [galera : LOGIC: Set Discovery Facts] *************************************
+[0;32mok: [db-node-02][0m
+
+TASK [galera : INSTALL: MariaDB Packages] **************************************
+[0;36mskipping: [db-node-02][0m
+
+TASK [galera : CONFIG: Deploy Galera Configuration] ****************************
+[0;32mok: [db-node-02][0m
+
+TASK [galera : STOP: Kill standalone or broken MariaDB processes] **************
+[0;36mskipping: [db-node-02][0m
+
+TASK [galera : Force safe_to_bootstrap] ****************************************
+[0;36mskipping: [db-node-02][0m
+
+TASK [galera : Initialize Galera New Cluster] **********************************
+[0;36mskipping: [db-node-02][0m
+
+TASK [galera : CASE B: Join Existing Cluster] **********************************
+[0;36mskipping: [db-node-02][0m
+
+TASK [galera : LVS-DR: Loopback VIP] *******************************************
+[0;32mok: [db-node-02][0m
+
+TASK [galera : HCIP: Interface dummy0 Setup] ***********************************
+[0;32mok: [db-node-02][0m
+
+TASK [galera : HCIP: Deploy Keepalived Files] **********************************
+[0;32mok: [db-node-02] => (item={'src': 'galera_hcip_manager.sh.j2', 'dest': '/usr/local/sbin/galera_healthcheck.sh', 'mode': '0755'})[0m
+[0;32mok: [db-node-02] => (item={'src': 'db_keepalived.conf.j2', 'dest': '/etc/keepalived/keepalived.conf', 'mode': '0644'})[0m
+
+TASK [galera : HCIP: Ensure Keepalived service] ********************************
+[0;32mok: [db-node-02][0m
+
+TASK [galera : WAIT: Ensure node is Synced before finishing] *******************
+[0;36mskipping: [db-node-02][0m
+
+TASK [galera : USERS: Setup Cluster Access] ************************************
+[0;32mok: [db-node-02 -> db-node-01(192.168.64.2)] => (item={'name': 'sst_user', 'host': '%'})[0m
+[0;32mok: [db-node-02 -> db-node-01(192.168.64.2)] => (item={'name': 'root', 'host': '%'})[0m
+[0;32mok: [db-node-02 -> db-node-01(192.168.64.2)] => (item={'name': 'root', 'host': 'localhost'})[0m
+
+PLAY [Phase 3 - Build Galera Cluster] ******************************************
+
+TASK [Gathering Facts] *********************************************************
+[0;32mok: [db-node-03][0m
+
+TASK [galera : DISCOVERY: Audit all nodes (Pre-Flight)] ************************
+[0;32mok: [db-node-03 -> db-node-01(192.168.64.2)] => (item=db-node-01)[0m
+[0;32mok: [db-node-03 -> db-node-02(192.168.64.3)] => (item=db-node-02)[0m
+[0;32mok: [db-node-03] => (item=db-node-03)[0m
+
+TASK [galera : DISCOVERY: Check if MariaDB is installed] ***********************
+[0;32mok: [db-node-03][0m
+
+TASK [galera : DISCOVERY: Check local Galera state] ****************************
+[0;32mok: [db-node-03][0m
+
+TASK [galera : LOGIC: Set Discovery Facts] *************************************
+[0;32mok: [db-node-03][0m
+
+TASK [galera : INSTALL: MariaDB Packages] **************************************
+[0;36mskipping: [db-node-03][0m
+
+TASK [galera : CONFIG: Deploy Galera Configuration] ****************************
+[0;32mok: [db-node-03][0m
+
+TASK [galera : STOP: Kill standalone or broken MariaDB processes] **************
+[0;36mskipping: [db-node-03][0m
+
+TASK [galera : Force safe_to_bootstrap] ****************************************
+[0;36mskipping: [db-node-03][0m
+
+TASK [galera : Initialize Galera New Cluster] **********************************
+[0;36mskipping: [db-node-03][0m
+
+TASK [galera : CASE B: Join Existing Cluster] **********************************
+[0;36mskipping: [db-node-03][0m
+
+TASK [galera : LVS-DR: Loopback VIP] *******************************************
+[0;36mskipping: [db-node-03][0m
+
+TASK [galera : HCIP: Interface dummy0 Setup] ***********************************
+[0;36mskipping: [db-node-03][0m
+
+TASK [galera : HCIP: Deploy Keepalived Files] **********************************
+[0;36mskipping: [db-node-03] => (item={'src': 'galera_hcip_manager.sh.j2', 'dest': '/usr/local/sbin/galera_healthcheck.sh', 'mode': '0755'}) [0m
+[0;36mskipping: [db-node-03] => (item={'src': 'db_keepalived.conf.j2', 'dest': '/etc/keepalived/keepalived.conf', 'mode': '0644'}) [0m
+[0;36mskipping: [db-node-03][0m
+
+TASK [galera : HCIP: Ensure Keepalived service] ********************************
+[0;36mskipping: [db-node-03][0m
+
+TASK [galera : WAIT: Ensure node is Synced before finishing] *******************
+[0;36mskipping: [db-node-03][0m
+
+TASK [galera : USERS: Setup Cluster Access] ************************************
+[0;32mok: [db-node-03 -> db-node-01(192.168.64.2)] => (item={'name': 'sst_user', 'host': '%'})[0m
+[0;32mok: [db-node-03 -> db-node-01(192.168.64.2)] => (item={'name': 'root', 'host': '%'})[0m
+[0;32mok: [db-node-03 -> db-node-01(192.168.64.2)] => (item={'name': 'root', 'host': 'localhost'})[0m
+
+PLAY [Setup LVS Load Balancers] ************************************************
+
+TASK [Gathering Facts] *********************************************************
+[0;32mok: [lvs-node-1][0m
+[0;32mok: [lvs-node-2][0m
+
+TASK [lvs : Install LVS and Keepalived dependencies] ***************************
+[0;32mok: [lvs-node-2][0m
+[0;32mok: [lvs-node-1][0m
+
+TASK [lvs : Enable IPv4 forwarding] ********************************************
+[0;32mok: [lvs-node-2][0m
+[0;32mok: [lvs-node-1][0m
+
+TASK [lvs : Ensure .ssh directory exists for root] *****************************
+[0;32mok: [lvs-node-1][0m
+[0;32mok: [lvs-node-2][0m
+
+TASK [lvs : Deploy SSH Private Key for LVS Health Checks] **********************
+[0;32mok: [lvs-node-1][0m
+[0;32mok: [lvs-node-2][0m
+
+TASK [lvs : Deploy LVS Health Check script] ************************************
+[0;33mchanged: [lvs-node-2][0m
+[0;33mchanged: [lvs-node-1][0m
+
+TASK [lvs : Deploy Keepalived configuration from template] *********************
+[0;35m[0m
+[0;32mok: [lvs-node-2][0m
+[0;32mok: [lvs-node-1][0m
+
+TASK [lvs : Start and Enable Keepalived] ***************************************
+[0;32mok: [lvs-node-1][0m
+[0;32mok: [lvs-node-2][0m
+
+PLAY [Configure Async Replica] *************************************************
+
+TASK [Gathering Facts] *********************************************************
+[0;32mok: [async-node][0m
+
+TASK [async_replica : Ensure MariaDB Server is installed on Async Node] ********
+[0;32mok: [async-node][0m
+
+TASK [async_replica : Identify Healthy Galera Nodes] ***************************
+[0;32mok: [async-node -> db-node-01(192.168.64.2)] => (item=db-node-01)[0m
+[0;32mok: [async-node -> db-node-02(192.168.64.3)] => (item=db-node-02)[0m
+[0;32mok: [async-node -> db-node-03(192.168.64.4)] => (item=db-node-03)[0m
+
+TASK [async_replica : Set Active Galera Master Fact] ***************************
+[0;32mok: [async-node][0m
+
+TASK [async_replica : Check current Replication Status on Async Node] **********
+[0;32mok: [async-node][0m
+
+TASK [async_replica : Set Replication Health Fact] *****************************
+[0;32mok: [async-node][0m
+
+TASK [async_replica : Ensure Replication User has access from Async Node IP] ***
+[0;36mskipping: [async-node][0m
+
+TASK [async_replica : Ensure MariaDB config directory exists] ******************
+[0;32mok: [async-node][0m
+
+TASK [async_replica : Apply Standalone Replica Configuration] ******************
+[0;32mok: [async-node][0m
+
+TASK [async_replica : Grant Control Node access to Async Node for Diagnostics] ***
+[0;35m[DEPRECATION WARNING]: INJECT_FACTS_AS_VARS default to `True` is deprecated, top-level facts will not be auto injected after the change. This feature will be removed from ansible-core version 2.24.[0m
+[0;35mOrigin: /home/ubuntu/harbour-master/backend/ansible/roles/async_replica/tasks/main.yml:79:11[0m
+[0;35m[0m
+[0;35m77     password: "{{ wsrep_sst_auth.split(':')[1] }}"[0m
+[0;35m78     # Robust IP detection: Try SSH_CLIENT, then Control Node IP, then fallback to Head Node's specific subnet IP[0m
+[0;35m79     host: "{{ (ansible_env.SSH_CLIENT | default('')).split() | first | default(hostvars['localhost']['ansible_defa...[0m
+[0;35m             ^ column 11[0m
+[0;35m[0m
+[0;35mUse `ansible_facts["fact_name"]` (no `ansible_` prefix) instead.[0m
+[0;35m[0m
+[0;32mok: [async-node][0m
+
+TASK [async_replica : Restart MariaDB to apply configs] ************************
+[0;36mskipping: [async-node][0m
+
+TASK [async_replica : Hard Reset Slave State for GTID alignment] ***************
+[0;36mskipping: [async-node][0m
+
+TASK [async_replica : Get Master GTID Position] ********************************
+[0;36mskipping: [async-node][0m
+
+TASK [async_replica : Align Slave GTID position] *******************************
+[0;36mskipping: [async-node][0m
+
+TASK [async_replica : Configure Master Handshake] ******************************
+[0;36mskipping: [async-node][0m
+
+TASK [async_replica : Start Replication] ***************************************
+[0;36mskipping: [async-node][0m
+
+TASK [async_replica : Verify Replication Status] *******************************
+[0;33mchanged: [async-node][0m
+
+PLAY [Deploy Monitoring Stack] *************************************************
+
+TASK [Gathering Facts] *********************************************************
+[0;32mok: [db-node-01][0m
+[0;32mok: [async-node][0m
+
+TASK [monitoring : [SERVER] Deploy Prometheus and Grafana Engine] **************
+[0;36mskipping: [async-node][0m
+[0;36mskipping: [db-node-01][0m
+
+TASK [monitoring : [CLIENT] Deploy Metrics Exporters] **************************
+[0;36mincluded: /home/ubuntu/harbour-master/backend/ansible/roles/monitoring/tasks/exporters.yml for async-node, db-node-01[0m
+
+TASK [monitoring : Install Node and MySQL Exporters] ***************************
+[0;32mok: [db-node-01][0m
+[0;32mok: [async-node][0m
+
+TASK [monitoring : Create MariaDB Exporter User] *******************************
+[0;32mok: [db-node-01][0m
+[0;32mok: [async-node][0m
+
+TASK [monitoring : Configure MySQL Exporter Auth] ******************************
+[0;32mok: [async-node][0m
+[0;32mok: [db-node-01][0m
+
+TASK [monitoring : Set MySQL Exporter Flags] ***********************************
+[0;32mok: [async-node][0m
+[0;32mok: [db-node-01][0m
+
+TASK [monitoring : Ensure Monitoring Agents are started and enabled] ***********
+[0;32mok: [db-node-01] => (item=prometheus-node-exporter)[0m
+[0;32mok: [async-node] => (item=prometheus-node-exporter)[0m
+[0;32mok: [db-node-01] => (item=prometheus-mysqld-exporter)[0m
+[0;32mok: [async-node] => (item=prometheus-mysqld-exporter)[0m
+
+TASK [monitoring : Ensure Node Exporter is active on non-DB nodes] *************
+[0;36mskipping: [async-node][0m
+[0;36mskipping: [db-node-01][0m
+
+PLAY [Deploy Monitoring Stack] *************************************************
+
+TASK [Gathering Facts] *********************************************************
+[0;32mok: [db-node-03][0m
+[0;32mok: [db-node-02][0m
+
+TASK [monitoring : [SERVER] Deploy Prometheus and Grafana Engine] **************
+[0;36mskipping: [db-node-02][0m
+[0;36mskipping: [db-node-03][0m
+
+TASK [monitoring : [CLIENT] Deploy Metrics Exporters] **************************
+[0;36mincluded: /home/ubuntu/harbour-master/backend/ansible/roles/monitoring/tasks/exporters.yml for db-node-02, db-node-03[0m
+
+TASK [monitoring : Install Node and MySQL Exporters] ***************************
+[0;32mok: [db-node-03][0m
+[0;32mok: [db-node-02][0m
+
+TASK [monitoring : Create MariaDB Exporter User] *******************************
+[0;33mchanged: [db-node-02][0m
+[0;32mok: [db-node-03][0m
+
+TASK [monitoring : Configure MySQL Exporter Auth] ******************************
+[0;32mok: [db-node-02][0m
+[0;32mok: [db-node-03][0m
+
+TASK [monitoring : Set MySQL Exporter Flags] ***********************************
+[0;32mok: [db-node-02][0m
+[0;32mok: [db-node-03][0m
+
+TASK [monitoring : Ensure Monitoring Agents are started and enabled] ***********
+[0;32mok: [db-node-02] => (item=prometheus-node-exporter)[0m
+[0;32mok: [db-node-03] => (item=prometheus-node-exporter)[0m
+[0;32mok: [db-node-03] => (item=prometheus-mysqld-exporter)[0m
+[0;32mok: [db-node-02] => (item=prometheus-mysqld-exporter)[0m
+
+TASK [monitoring : Ensure Node Exporter is active on non-DB nodes] *************
+[0;36mskipping: [db-node-02][0m
+[0;36mskipping: [db-node-03][0m
+
+PLAY [Deploy Monitoring Stack] *************************************************
+
+TASK [Gathering Facts] *********************************************************
+[0;32mok: [lvs-node-1][0m
+[0;32mok: [lvs-node-2][0m
+
+TASK [monitoring : [SERVER] Deploy Prometheus and Grafana Engine] **************
+[0;36mskipping: [lvs-node-1][0m
+[0;36mskipping: [lvs-node-2][0m
+
+TASK [monitoring : [CLIENT] Deploy Metrics Exporters] **************************
+[0;36mincluded: /home/ubuntu/harbour-master/backend/ansible/roles/monitoring/tasks/exporters.yml for lvs-node-1, lvs-node-2[0m
+
+TASK [monitoring : Install Node and MySQL Exporters] ***************************
+[0;32mok: [lvs-node-1][0m
+[0;32mok: [lvs-node-2][0m
+
+TASK [monitoring : Create MariaDB Exporter User] *******************************
+[0;36mskipping: [lvs-node-1][0m
+[0;36mskipping: [lvs-node-2][0m
+
+TASK [monitoring : Configure MySQL Exporter Auth] ******************************
+[0;36mskipping: [lvs-node-1][0m
+[0;36mskipping: [lvs-node-2][0m
+
+TASK [monitoring : Set MySQL Exporter Flags] ***********************************
+[0;36mskipping: [lvs-node-1][0m
+[0;36mskipping: [lvs-node-2][0m
+
+TASK [monitoring : Ensure Monitoring Agents are started and enabled] ***********
+[0;36mskipping: [lvs-node-1] => (item=prometheus-node-exporter) [0m
+[0;36mskipping: [lvs-node-1] => (item=prometheus-mysqld-exporter) [0m
+[0;36mskipping: [lvs-node-1][0m
+[0;36mskipping: [lvs-node-2] => (item=prometheus-node-exporter) [0m
+[0;36mskipping: [lvs-node-2] => (item=prometheus-mysqld-exporter) [0m
+[0;36mskipping: [lvs-node-2][0m
+
+TASK [monitoring : Ensure Node Exporter is active on non-DB nodes] *************
+[0;32mok: [lvs-node-1][0m
+[0;32mok: [lvs-node-2][0m
+
+PLAY [Deploy Monitoring Stack] *************************************************
+
+TASK [Gathering Facts] *********************************************************
+[0;32mok: [monitor-node][0m
+
+TASK [monitoring : [SERVER] Deploy Prometheus and Grafana Engine] **************
+[0;36mincluded: /home/ubuntu/harbour-master/backend/ansible/roles/monitoring/tasks/server.yml for monitor-node[0m
+
+TASK [monitoring : Install dependencies for Grafana] ***************************
+[0;32mok: [monitor-node][0m
+
+TASK [monitoring : Create directory for APT keyrings] **************************
+[0;32mok: [monitor-node][0m
+
+TASK [monitoring : Import Grafana GPG key] *************************************
+[0;32mok: [monitor-node][0m
+
+TASK [monitoring : Add Grafana official APT repository (Low Memory Version)] ***
+[0;33mchanged: [monitor-node][0m
+
+TASK [monitoring : Update apt cache manually] **********************************
+[0;33mchanged: [monitor-node][0m
+
+TASK [monitoring : Install Prometheus and Grafana] *****************************
+[0;32mok: [monitor-node][0m
+
+TASK [monitoring : Create Provisioning Directories] ****************************
+[0;32mok: [monitor-node] => (item=/etc/grafana/provisioning/datasources)[0m
+[0;32mok: [monitor-node] => (item=/etc/grafana/provisioning/dashboards)[0m
+[0;32mok: [monitor-node] => (item=/var/lib/grafana/dashboards)[0m
+
+TASK [monitoring : Deploy Prometheus Configuration] ****************************
+[0;32mok: [monitor-node][0m
+
+TASK [monitoring : Provision Data Source (Prometheus)] *************************
+[0;32mok: [monitor-node][0m
+
+TASK [monitoring : Provision Dashboard Provider] *******************************
+[0;32mok: [monitor-node][0m
+
+TASK [monitoring : Sync Static Dashboard JSON Files] ***************************
+[0;32mok: [monitor-node][0m
+
+TASK [monitoring : Render Custom Galera Dashboard Template] ********************
+[0;32mok: [monitor-node][0m
+
+TASK [monitoring : Force systemd to recognize new units] ***********************
+[0;32mok: [monitor-node][0m
+
+TASK [monitoring : Start and Enable Services] **********************************
+[0;32mok: [monitor-node] => (item=prometheus)[0m
+[0;32mok: [monitor-node] => (item=grafana-server)[0m
+
+TASK [monitoring : Final Service Check and Restart] ****************************
+[0;33mchanged: [monitor-node][0m
+
+TASK [monitoring : [CLIENT] Deploy Metrics Exporters] **************************
+[0;36mskipping: [monitor-node][0m
+
+PLAY RECAP *********************************************************************
+[0;33masync-node[0m                 : [0;32mok=27  [0m [0;33mchanged=2   [0m unreachable=0    failed=0    [0;36mskipped=11  [0m rescued=0    ignored=0   
+[0;33mdb-node-01[0m                 : [0;32mok=28  [0m [0;33mchanged=1   [0m unreachable=0    failed=0    [0;36mskipped=10  [0m rescued=0    ignored=0   
+[0;33mdb-node-02[0m                 : [0;32mok=28  [0m [0;33mchanged=2   [0m unreachable=0    failed=0    [0;36mskipped=10  [0m rescued=0    ignored=0   
+[0;33mdb-node-03[0m                 : [0;32mok=24  [0m [0;33mchanged=1   [0m unreachable=0    failed=0    [0;36mskipped=14  [0m rescued=0    ignored=0   
+[0;32mlocalhost[0m                  : [0;32mok=2   [0m changed=0    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+[0;33mlvs-node-1[0m                 : [0;32mok=15  [0m [0;33mchanged=2   [0m unreachable=0    failed=0    [0;36mskipped=5   [0m rescued=0    ignored=0   
+[0;33mlvs-node-2[0m                 : [0;32mok=15  [0m [0;33mchanged=2   [0m unreachable=0    failed=0    [0;36mskipped=5   [0m rescued=0    ignored=0   
+[0;33mmonitor-node[0m               : [0;32mok=20  [0m [0;33mchanged=4   [0m unreachable=0    failed=0    [0;36mskipped=1   [0m rescued=0    ignored=0   

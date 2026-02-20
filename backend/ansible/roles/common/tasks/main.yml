@@ -1,9 +1,39 @@
 ---
-# This role prepares the OS for MariaDB installation
+# ===============================================================
+# PHASE 0: VERSION VALIDATION & IDEMPOTENCY GUARD
+# ===============================================================
+
+- name: Check if MariaDB is already installed
+  command: mysql --version
+  register: mariadb_check
+  failed_when: false
+  changed_when: false
+
+- name: Extract installed version string
+  set_fact:
+    # Logic: Specifically look for the version number AFTER the word 'Distrib'
+    # This prevents the regex from grabbing the protocol version (15.1)
+    installed_version: "{{ mariadb_check.stdout | regex_search('Distrib ([0-9]+\\.[0-9]+)', '\\1') | first | default(mariadb_check.stdout | regex_search('([0-9]+\\.[0-9]+)\\.[0-9]+-MariaDB', '\\1') | first) }}"
+  when: mariadb_check.rc == 0
+
+- name: Block execution if versions mismatch
+  fail:
+    msg: "Safety Stop: You requested MariaDB {{ mariadb_version }}, but version {{ installed_version }} is already installed. Downgrades/Upgrades are not allowed via this playbook."
+  when: 
+    - mariadb_check.rc == 0
+    - installed_version is defined
+    - installed_version != (mariadb_version | string)
+
+# ===============================================================
+# PHASE 1: REPOSITORY & DEPENDENCY SETUP
+# ===============================================================
+
 - name: Update apt cache
   apt:
     update_cache: yes
+    cache_valid_time: 3600
   become: yes
+
 - name: Install dependencies
   apt:
     name:
@@ -13,18 +43,22 @@
       - curl
     state: present
   become: yes
+
 - name: Add MariaDB GPG key
   apt_key:
     url: "https://mariadb.org/mariadb_release_signing_key.asc"
     state: present
   become: yes
+
 - name: Add MariaDB Repository for version {{ mariadb_version }}
   apt_repository:
     repo: "deb [arch=arm64,amd64] https://archive.mariadb.org/mariadb-{{ mariadb_version }}/repo/ubuntu {{ ansible_distribution_release }} main"
     state: present
   become: yes
+  register: repo_added
+
 - name: Update apt cache after adding repo
   apt:
     update_cache: yes
   become: yes
-
+  when: repo_added.changed

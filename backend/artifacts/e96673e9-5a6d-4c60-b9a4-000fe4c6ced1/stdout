@@ -1,0 +1,231 @@
+
+PLAY [Phase 0 - Infrastructure Handshake Preparation] **************************
+
+TASK [Ensure LVS files directory exists] ***************************************
+[0;32mok: [localhost][0m
+
+TASK [Generate SSH keypair for LVS Health Checks] ******************************
+[0;32mok: [localhost][0m
+
+PLAY [Phase 1 - Prepare All Nodes] *********************************************
+
+TASK [Gathering Facts] *********************************************************
+[1;35m[WARNING]: Host 'db-node-01' is using the discovered Python interpreter at '/usr/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.[0m
+[0;32mok: [db-node-01][0m
+[1;35m[WARNING]: Host 'async-node' is using the discovered Python interpreter at '/usr/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.[0m
+[0;32mok: [async-node][0m
+
+TASK [Wait for apt lock to be released] ****************************************
+[0;33mchanged: [async-node][0m
+[0;33mchanged: [db-node-01][0m
+
+TASK [Install basic utilities] *************************************************
+[0;32mok: [db-node-01][0m
+[0;32mok: [async-node][0m
+
+PLAY [Phase 1 - Prepare All Nodes] *********************************************
+
+TASK [Gathering Facts] *********************************************************
+[1;35m[WARNING]: Host 'db-node-02' is using the discovered Python interpreter at '/usr/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.[0m
+[0;32mok: [db-node-02][0m
+[1;35m[WARNING]: Host 'db-node-03' is using the discovered Python interpreter at '/usr/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.[0m
+[0;32mok: [db-node-03][0m
+
+TASK [Wait for apt lock to be released] ****************************************
+[0;33mchanged: [db-node-02][0m
+[0;33mchanged: [db-node-03][0m
+
+TASK [Install basic utilities] *************************************************
+[0;32mok: [db-node-03][0m
+[0;32mok: [db-node-02][0m
+
+PLAY [Phase 1 - Prepare All Nodes] *********************************************
+
+TASK [Gathering Facts] *********************************************************
+[1;35m[WARNING]: Host 'lvs-node-1' is using the discovered Python interpreter at '/usr/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.[0m
+[0;32mok: [lvs-node-1][0m
+[1;35m[WARNING]: Host 'lvs-node-2' is using the discovered Python interpreter at '/usr/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.[0m
+[0;32mok: [lvs-node-2][0m
+
+TASK [Wait for apt lock to be released] ****************************************
+[0;33mchanged: [lvs-node-1][0m
+[0;33mchanged: [lvs-node-2][0m
+
+TASK [Install basic utilities] *************************************************
+[0;32mok: [lvs-node-1][0m
+[0;32mok: [lvs-node-2][0m
+
+PLAY [Phase 1 - Prepare All Nodes] *********************************************
+
+TASK [Gathering Facts] *********************************************************
+[1;35m[WARNING]: Host 'monitor-node' is using the discovered Python interpreter at '/usr/bin/python3.12', but future installation of another Python interpreter could cause a different interpreter to be discovered. See https://docs.ansible.com/ansible-core/2.20/reference_appendices/interpreter_discovery.html for more information.[0m
+[0;32mok: [monitor-node][0m
+
+TASK [Wait for apt lock to be released] ****************************************
+[0;33mchanged: [monitor-node][0m
+
+TASK [Install basic utilities] *************************************************
+[0;32mok: [monitor-node][0m
+
+PLAY [Phase 2 - Setup MariaDB Repositories] ************************************
+
+TASK [Gathering Facts] *********************************************************
+[0;32mok: [db-node-02][0m
+[0;32mok: [db-node-01][0m
+
+TASK [common : Check if MariaDB is already installed] **************************
+[0;32mok: [db-node-01][0m
+[0;32mok: [db-node-02][0m
+
+TASK [common : Extract installed version string] *******************************
+[0;32mok: [db-node-01][0m
+[0;32mok: [db-node-02][0m
+
+TASK [common : Block execution if versions mismatch] ***************************
+[0;36mskipping: [db-node-01][0m
+[0;36mskipping: [db-node-02][0m
+
+TASK [common : Update apt cache] ***********************************************
+[0;32mok: [db-node-01][0m
+[0;32mok: [db-node-02][0m
+
+TASK [common : Install dependencies] *******************************************
+[0;32mok: [db-node-01][0m
+[0;32mok: [db-node-02][0m
+
+TASK [common : Add MariaDB GPG key] ********************************************
+[0;32mok: [db-node-02][0m
+[0;32mok: [db-node-01][0m
+
+TASK [common : Add MariaDB Repository for version 10.11] ***********************
+[1;35m[WARNING]: Deprecation warnings can be disabled by setting `deprecation_warnings=False` in ansible.cfg.[0m
+[0;35m[0m
+[0;32mok: [db-node-01][0m
+[0;32mok: [db-node-02][0m
+
+TASK [common : Update apt cache after adding repo] *****************************
+[0;36mskipping: [db-node-01][0m
+[0;36mskipping: [db-node-02][0m
+
+PLAY [Phase 2 - Setup MariaDB Repositories] ************************************
+
+TASK [Gathering Facts] *********************************************************
+[0;32mok: [db-node-03][0m
+[0;32mok: [async-node][0m
+
+TASK [common : Check if MariaDB is already installed] **************************
+[0;32mok: [db-node-03][0m
+[0;32mok: [async-node][0m
+
+TASK [common : Extract installed version string] *******************************
+[0;32mok: [db-node-03][0m
+[0;32mok: [async-node][0m
+
+TASK [common : Block execution if versions mismatch] ***************************
+[0;36mskipping: [db-node-03][0m
+[0;36mskipping: [async-node][0m
+
+TASK [common : Update apt cache] ***********************************************
+[0;32mok: [db-node-03][0m
+[0;32mok: [async-node][0m
+
+TASK [common : Install dependencies] *******************************************
+[0;32mok: [db-node-03][0m
+[0;32mok: [async-node][0m
+
+TASK [common : Add MariaDB GPG key] ********************************************
+[0;32mok: [async-node][0m
+[0;32mok: [db-node-03][0m
+
+TASK [common : Add MariaDB Repository for version 10.11] ***********************
+[0;32mok: [db-node-03][0m
+[0;32mok: [async-node][0m
+
+TASK [common : Update apt cache after adding repo] *****************************
+[0;36mskipping: [db-node-03][0m
+[0;36mskipping: [async-node][0m
+
+PLAY [Phase 3 - Build Galera Cluster] ******************************************
+
+TASK [Gathering Facts] *********************************************************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : DISCOVERY: Audit all nodes (Pre-Flight)] ************************
+[0;32mok: [db-node-01] => (item=db-node-01)[0m
+[0;32mok: [db-node-01 -> db-node-02(192.168.64.3)] => (item=db-node-02)[0m
+[0;32mok: [db-node-01 -> db-node-03(192.168.64.4)] => (item=db-node-03)[0m
+
+TASK [galera : DISCOVERY: Check if MariaDB is installed] ***********************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : DISCOVERY: Check local service status] **************************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : DISCOVERY: Check local Galera state] ****************************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : DISCOVERY: Get Sequence Number (GTID) from grastate] ************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : DISCOVERY: Check HCIP ownership] ********************************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : LOGIC: Set Local Discovery Facts] *******************************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : LOGIC: Share Master Status across all nodes] ********************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : LOGIC: Determine best Bootstrap node (Last Man Standing)] *******
+[0;32mok: [db-node-01][0m
+
+TASK [galera : INSTALL: Base MariaDB & Dependencies] ***************************
+[0;36mskipping: [db-node-01][0m
+
+TASK [galera : CONFIG: Deploy Galera Configuration] ****************************
+[0;33mchanged: [db-node-01][0m
+
+TASK [galera : CLEANUP: Stop standalone MariaDB to allow Cluster initialization] ***
+[0;33mchanged: [db-node-01][0m
+
+TASK [galera : CASE 4: Resolve Split-Brain via HCIP Master] ********************
+[0;36mskipping: [db-node-01][0m
+
+TASK [galera : Prepare grastate.dat] *******************************************
+[0;36mskipping: [db-node-01][0m
+
+TASK [galera : Bootstrap New Cluster] ******************************************
+[0;36mskipping: [db-node-01][0m
+
+TASK [galera : CASE 1/Join: Start MariaDB (Joining)] ***************************
+[0;31m[ERROR]: Task failed: Module failed: Unable to start service mariadb: Job for mariadb.service failed because the control process exited with error code.[0m
+[0;31mSee "systemctl status mariadb.service" and "journalctl -xeu mariadb.service" for details.[0m
+[0;31m[0m
+[0;31mOrigin: /home/ubuntu/harbour-master/backend/ansible/roles/galera/tasks/main.yml:145:3[0m
+[0;31m[0m
+[0;31m143     - not is_synced # Even if service was manually started, we bootstrap if not synced[0m
+[0;31m144[0m
+[0;31m145 - name: "CASE 1/Join: Start MariaDB (Joining)"[0m
+[0;31m      ^ column 3[0m
+[0;31m[0m
+[0;31mfatal: [db-node-01]: FAILED! => {"changed": false, "msg": "Unable to start service mariadb: Job for mariadb.service failed because the control process exited with error code.\nSee \"systemctl status mariadb.service\" and \"journalctl -xeu mariadb.service\" for details.\n"}[0m
+[0;36m...ignoring[0m
+
+TASK [galera : LVS-DR: Loopback VIP] *******************************************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : HCIP: Interface dummy0 Setup] ***********************************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : HCIP: Deploy Keepalived Files] **********************************
+[0;32mok: [db-node-01] => (item={'src': 'galera_hcip_manager.sh.j2', 'dest': '/usr/local/sbin/galera_healthcheck.sh', 'mode': '0755'})[0m
+[0;35m[0m
+[0;32mok: [db-node-01] => (item={'src': 'db_keepalived.conf.j2', 'dest': '/etc/keepalived/keepalived.conf', 'mode': '0644'})[0m
+
+TASK [galera : HCIP: Ensure Keepalived service] ********************************
+[0;32mok: [db-node-01][0m
+
+TASK [galera : WAIT: Wait for Synced state before setting users] ***************
+[1;30mFAILED - RETRYING: [db-node-01]: WAIT: Wait for Synced state before setting users (40 retries left).[0m
+[1;30mFAILED - RETRYING: [db-node-01]: WAIT: Wait for Synced state before setting users (39 retries left).[0m
+[1;30mFAILED - RETRYING: [db-node-01]: WAIT: Wait for Synced state before setting users (38 retries left).[0m

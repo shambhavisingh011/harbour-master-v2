@@ -1,9 +1,26 @@
+global_defs {
+    router_id {{ inventory_hostname }}
+    enable_script_security
+    script_user root
+}
+
 vrrp_instance VI_1 {
-    state {{ 'MASTER' if inventory_hostname == groups['lvs'][0] else 'BACKUP' }}
+    state MASTER
     interface {{ ansible_default_ipv4.interface }}
-    virtual_router_id 51
-    priority {{ 100 if inventory_hostname == groups['lvs'][0] else 90 }}
+    virtual_router_id 50
+    priority 100
     advert_int 1
+    nopreempt
+
+    unicast_src_ip {{ ansible_default_ipv4.address }}
+    unicast_peer {
+        {% for host in groups['lvs'] %}
+        {% if host != inventory_hostname %}
+        {{ hostvars[host]['ansible_default_ipv4']['address'] }}
+        {% endif %}
+        {% endfor %}
+    }
+
     virtual_ipaddress {
         {{ lvs_vip }}
     }
@@ -11,19 +28,23 @@ vrrp_instance VI_1 {
 
 virtual_server {{ lvs_vip }} 3306 {
     delay_loop 2
-    lb_algo wrr
+    lb_algo rr
     lb_kind DR
     protocol TCP
 
-    {% for host in groups['galera'][:2] %}
-    # Using ansible_host to ensure compatibility with --limit deployments
-    real_server {{ hostvars[host]['ansible_host'] }} 3306 {
-        weight 100
+    # Dynamically generate real_server entries for all Galera nodes
+    {% for host in groups['galera'] %}
+    # We only include the first two nodes as potential writers per your setup
+    {% if loop.index <= 2 %}
+    real_server {{ hostvars[host]['ansible_default_ipv4']['address'] }} 3306 {
+        weight 1
         MISC_CHECK {
-            # This script returns 0 only if {{ hcip_value }} is found on the remote dummy0
-            misc_path "/usr/bin/ssh -o ConnectTimeout=2 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i /root/.ssh/id_rsa root@{{ hostvars[host]['ansible_host'] }} 'ip addr show dummy0 | grep -q {{ hcip_value }}'"
+            # We pass the physical node IP to the script, which checks for the HCIP
+            misc_path "/usr/local/bin/check_hcip_ssh.sh {{ hostvars[host]['ansible_default_ipv4']['address'] }}"
             misc_timeout 5
+            user root
         }
     }
+    {% endif %}
     {% endfor %}
 }

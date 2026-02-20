@@ -1,0 +1,1 @@
+{"event": "verbose", "uuid": "ea01835a-8663-4182-b346-c5638822d5b8", "counter": 521, "stdout": "\u001b[0;35m79     host: \"{{ (ansible_env.SSH_CLIENT | default('')).split() | first | default(hostvars['localhost']['ansible_defa...\u001b[0m", "start_line": 488, "end_line": 489, "runner_ident": "f7965022-2c26-4647-9ae8-ebd00759cf58", "created": "2026-02-19T19:24:14.329934+00:00"}

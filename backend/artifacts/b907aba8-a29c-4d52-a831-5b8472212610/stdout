@@ -1,0 +1,8 @@
+[0;31m[ERROR]: 'register' is not a valid attribute for a Block[0m
+[0;31mOrigin: /home/ubuntu/harbour-master/backend/ansible/roles/galera/tasks/main.yml:128:3[0m
+[0;31m[0m
+[0;31m126   become: yes[0m
+[0;31m127   when: inventory_hostname in groups['galera'][:2][0m
+[0;31m128   register: ha_config[0m
+[0;31m      ^ column 3[0m
+[0;31m[0m

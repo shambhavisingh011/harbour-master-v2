@@ -1,53 +1,52 @@
 ---
-# 1. Install Software & Dependencies
-- name: "Install MariaDB Server and Galera dependencies"
+# ===============================================================
+# PHASE 0: DISCOVERY (Determine the Current Reality)
+# ===============================================================
+
+- name: "DISCOVERY: Audit all nodes (Pre-Flight)"
+  setup:
+  delegate_to: "{{ item }}"
+  delegate_facts: true
+  loop: "{{ groups['galera'] }}"
+  run_once: true
+
+- name: "DISCOVERY: Check if MariaDB is installed"
+  stat:
+    path: /usr/sbin/mariadbd
+  register: mariadb_installed
+
+- name: "DISCOVERY: Check local Galera state"
+  shell: |
+    STATUS=$(mariadb -u root -N -s -e "SHOW STATUS LIKE 'wsrep_local_state_comment';" 2>/dev/null | awk '{print $2}')
+    if [ -z "$STATUS" ]; then
+      PASS="{{ wsrep_sst_auth.split(':')[1] }}"
+      STATUS=$(mariadb -u root -p"$PASS" -N -s -e "SHOW STATUS LIKE 'wsrep_local_state_comment';" 2>/dev/null | awk '{print $2}')
+    fi
+    echo "${STATUS:-OFFLINE}"
+  become: yes
+  register: galera_info
+  changed_when: false
+
+- name: "LOGIC: Set Discovery Facts"
+  set_fact:
+    is_installed: "{{ mariadb_installed.stat.exists }}"
+    is_synced: "{{ 'Synced' in galera_info.stdout }}"
+    # We check if ANY node in the cluster is already healthy
+    cluster_is_alive: "{{ groups['galera'] | map('extract', hostvars) | selectattr('galera_info.stdout', 'defined') | selectattr('galera_info.stdout', 'search', 'Synced') | list | length > 0 }}"
+
+# ===============================================================
+# PHASE 1: PREPARATION (Install & Config)
+# ===============================================================
+
+- name: "INSTALL: MariaDB Packages"
   apt:
-    name:
-      - mariadb-server
-      - mariadb-client
-      - mariadb-backup
-      - python3-pymysql
-      - socat
-      - rsync
+    name: [mariadb-server, mariadb-client, mariadb-backup, python3-pymysql, socat, rsync, keepalived]
     state: present
     update_cache: yes
   become: yes
+  when: not is_installed
 
-# 2. Pre-Check: Detect Current Cluster State
-# This allows us to skip bootstrap/init tasks if the cluster is already healthy
-- name: "PRE-CHECK: Check if MariaDB is already running and synced"
-  shell: |
-    if ! systemctl is-active --quiet mariadb; then
-      echo "OFFLINE"
-    else
-      # Check if we can log in and see the state
-      PASS="{{ wsrep_sst_auth.split(':')[1] }}"
-      STATUS=$(mariadb -u root -p"$PASS" -N -s -e "SHOW STATUS LIKE 'wsrep_local_state_comment';" 2>/dev/null | awk '{print $2}')
-      echo "${STATUS:-LOCKED}"
-    fi
-  become: yes
-  register: cluster_precheck
-  changed_when: false
-  failed_when: false
-
-# 3. Prevent Standalone Conflict
-- name: "Stop MariaDB to prevent standalone mode conflicts"
-  service:
-    name: mariadb
-    state: stopped
-  become: yes
-  # Only stop if it's not already part of a healthy cluster
-  when: cluster_precheck.stdout != "Synced"
-
-- name: "Disable default bind-address in 50-server.cnf"
-  lineinfile:
-    path: /etc/mysql/mariadb.conf.d/50-server.cnf
-    regexp: '^bind-address'
-    line: '#bind-address = 0.0.0.0'
-  become: yes
-
-# 4. Configure Node
-- name: "Deploy Galera Configuration"
+- name: "CONFIG: Deploy Galera Configuration"
   template:
     src: galera.cnf.j2
     dest: /etc/mysql/mariadb.conf.d/60-galera.cnf
@@ -57,196 +56,102 @@
   become: yes
   register: config_deployed
 
-# 5. Initialization & Bootstrap Preparation
-- name: "Initialize MariaDB data directory if empty"
-  command: mariadb-install-db --user=mysql --basedir=/usr --datadir=/var/lib/mysql
-  args:
-    creates: /var/lib/mysql/mysql
-  become: yes
+# ===============================================================
+# PHASE 2: CLUSTER INITIALIZATION (The 2-Case Logic)
+# ===============================================================
 
-- name: "Check if grastate.dat exists"
-  stat:
-    path: /var/lib/mysql/grastate.dat
-  register: grastate_file
-
-# 6. Handle Cluster Bootstrap logic (Primary Node)
-- name: "Bootstrap logic for Primary Node (Node 01)"
+- name: "EXECUTION: Handle Cluster Start"
   block:
-    - name: "Set safe_to_bootstrap flag in grastate.dat"
-      lineinfile:
-        path: /var/lib/mysql/grastate.dat
-        regexp: '^safe_to_bootstrap: 0'
-        line: 'safe_to_bootstrap: 1'
-      when: 
-        - grastate_file.stat.exists
-        - cluster_precheck.stdout != "Synced"
+    - name: "STOP: Kill standalone or broken MariaDB processes"
+      service:
+        name: mariadb
+        state: stopped
 
-    - name: "Execute Galera New Cluster command"
-      command: galera_new_cluster
-      when: cluster_precheck.stdout != "Synced"
+    # --- CASE A: Cluster is NOT formed (Bootstrap from Node 01) ---
+    - name: "CASE A: Bootstrap Primary Node"
+      block:
+        - name: "Force safe_to_bootstrap"
+          lineinfile:
+            path: /var/lib/mysql/grastate.dat
+            regexp: '^safe_to_bootstrap: 0'
+            line: 'safe_to_bootstrap: 1'
+        - name: "Initialize Galera New Cluster"
+          command: galera_new_cluster
+      when: inventory_hostname == groups['galera'][0]
 
-    - name: "Wait for Primary Node to be ready"
-      wait_for:
-        port: 3306
-        timeout: 60
-      when: cluster_precheck.stdout != "Synced"
+    # --- CASE B: Cluster is already formed or Node 01 is up (Joining) ---
+    - name: "CASE B: Join Existing Cluster"
+      service:
+        name: mariadb
+        state: started
+      when: inventory_hostname != groups['galera'][0]
+
   become: yes
-  when: inventory_hostname == groups['galera'][0]
+  # This whole block ONLY runs if the node is not already synced 
+  # AND no other node is already providing a healthy cluster.
+  when: not is_synced and not cluster_is_alive
 
-# 7. Join Secondary Nodes with Recovery Logic
-- name: "Join Secondary Nodes to Cluster"
-  service:
-    name: mariadb
-    state: started
-  become: yes
-  when: 
-    - inventory_hostname != groups['galera'][0]
-    - cluster_precheck.stdout != "Synced"
-  throttle: 1
-  register: node_join
-  ignore_errors: yes
+# ===============================================================
+# PHASE 3: NETWORKING & HA
+# ===============================================================
 
-- name: "RECOVERY: Wipe corrupted state if Join failed"
-  file:
-    path: "/var/lib/mysql/{{ item }}"
-    state: absent
-  become: yes
-  loop:
-    - grastate.dat
-    - galera.cache
-  when: 
-    - inventory_hostname != groups['galera'][0]
-    - cluster_precheck.stdout != "Synced"
-    - node_join is failed
+- name: "LVS-DR & HCIP Networking"
+  block:
+    - name: "LVS-DR: Loopback VIP"
+      shell: "ip addr add {{ lvs_vip }}/32 dev lo || true"
+      changed_when: false
 
-- name: "RETRY: Start MariaDB after state wipe"
-  service:
-    name: mariadb
-    state: started
-  become: yes
-  when: 
-    - inventory_hostname != groups['galera'][0]
-    - cluster_precheck.stdout != "Synced"
-    - node_join is failed
+    - name: "HCIP: Interface dummy0 Setup"
+      shell: |
+        modprobe dummy && ip link add dummy0 type dummy || true
+        ip link set dummy0 up
+      changed_when: false
 
-# 8. SSH & SECURITY HANDSHAKE
-- name: "SSH: Ensure .ssh directory exists for root"
-  file:
-    path: /root/.ssh
-    state: directory
-    mode: '0700'
-  become: yes
+    - name: "HCIP: Deploy Keepalived Files"
+      template:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        mode: "{{ item.mode }}"
+      loop:
+        - { src: 'galera_hcip_manager.sh.j2', dest: '/usr/local/sbin/galera_healthcheck.sh', mode: '0755' }
+        - { src: 'db_keepalived.conf.j2', dest: '/etc/keepalived/keepalived.conf', mode: '0644' }
+      register: ha_files
 
-- name: "SSH: Authorize LVS Health Check Key"
-  authorized_key:
-    user: root
-    state: present
-    key: "{{ lookup('file', playbook_dir + '/roles/lvs/files/id_rsa.pub') }}"
-  become: yes
-
-- name: "SSH: Allow root login via key"
-  lineinfile:
-    path: /etc/ssh/sshd_config
-    regexp: '^#?PermitRootLogin'
-    line: 'PermitRootLogin prohibit-password'
-  become: yes
-  notify: Restart SSH
-
-# 9. LVS-DR NETWORKING & HCIP LOGIC
-- name: "LVS-DR: Add VIP to loopback interface"
-  shell: "ip addr add {{ lvs_vip }}/32 dev lo || true"
-  become: yes
-  changed_when: false
-
-- name: "LVS-DR: Apply ARP Suppression"
-  sysctl:
-    name: "{{ item.key }}"
-    value: "{{ item.value }}"
-    state: present
-  loop:
-    - { key: 'net.ipv4.conf.all.arp_ignore', value: '1' }
-    - { key: 'net.ipv4.conf.all.arp_announce', value: '2' }
-    - { key: 'net.ipv4.conf.lo.arp_ignore', value: '1' }
-    - { key: 'net.ipv4.conf.lo.arp_announce', value: '2' }
-  become: yes
-
-- name: "HCIP: Load dummy network module"
-  modprobe:
-    name: dummy
-    state: present
+    - name: "HCIP: Ensure Keepalived service"
+      service:
+        name: keepalived
+        state: "{{ 'restarted' if ha_files.changed else 'started' }}"
+        enabled: yes
   become: yes
   when: inventory_hostname in groups['galera'][:2]
 
-- name: "HCIP: Create dummy0 network interface"
-  shell: "ip link add dummy0 type dummy || true"
-  become: yes
-  when: inventory_hostname in groups['galera'][:2]
+# ===============================================================
+# PHASE 4: FINAL VALIDATION & USERS
+# ===============================================================
 
-- name: "HCIP: Deploy Management Script"
-  template:
-    src: galera_hcip_manager.sh.j2
-    dest: /usr/local/bin/galera_hcip_manager.sh
-    mode: '0755'
-  become: yes
-  notify: Restart HCIP Service
-
-- name: "HCIP: Deploy Systemd Service Unit"
-  template:
-    src: galera-hcip.service.j2
-    dest: /etc/systemd/system/galera-hcip.service
-  become: yes
-  notify: 
-    - Reload Systemd         
-    - Restart HCIP Service
-
-- name: "HCIP: Remove old Cron Job"
-  cron:
-    name: "Galera HCIP Monitor"
-    state: absent
-  become: yes
-
-- name: "HCIP: Start and Enable HCIP Service"
-  systemd:
-    name: galera-hcip
-    state: started
-    enabled: yes
-  become: yes
-  when: inventory_hostname in groups['galera'][:2]
-
-# 10. Health Check & Sync Verification
-- name: "[Self-Healing] Wait for Node to finish Sync"
+- name: "WAIT: Ensure node is Synced before finishing"
   shell: |
     PASS="{{ wsrep_sst_auth.split(':')[1] }}"
     mariadb -u root -p"$PASS" -N -s -e "SHOW STATUS LIKE 'wsrep_local_state_comment';"
   become: yes
-  register: sync_check
-  until: '"Synced" in sync_check.stdout'
-  retries: 40
+  register: final_sync
+  until: '"Synced" in final_sync.stdout'
+  retries: 30
   delay: 10
-  changed_when: false
-  # Skip if we already confirmed it was Synced in PRE-CHECK
-  when: cluster_precheck.stdout != "Synced"
-
-# 11. Users & Access Management
-- name: "Create SST User for replication"
-  community.mysql.mysql_user:
-    name: "{{ wsrep_sst_auth.split(':')[0] }}"
-    password: "{{ wsrep_sst_auth.split(':')[1] }}"
-    priv: "*.*:ALL"
+  when: not is_synced
+- name: "SSH: Authorize LVS Health Check Key"
+  ansible.builtin.authorized_key:
+    user: root
     state: present
-    host: "%"
-    login_user: root
-    login_password: "{{ wsrep_sst_auth.split(':')[1] }}"
-    login_unix_socket: /var/run/mysqld/mysqld.sock
-    check_implicit_admin: yes
+    # This pulls the public key from your head-node's LVS role folder
+    key: "{{ lookup('file', 'roles/lvs/files/id_rsa.pub') }}"
   become: yes
-  run_once: true
 
-- name: "Allow Root Access from Remote Network"
+- name: "USERS: Setup Cluster Access"
   community.mysql.mysql_user:
-    name: root
-    host: "{{ item }}"
+    name: "{{ item.name }}"
     password: "{{ wsrep_sst_auth.split(':')[1] }}"
+    host: "{{ item.host }}"
     priv: "*.*:ALL,GRANT"
     state: present
     login_user: root
@@ -254,7 +159,9 @@
     login_unix_socket: /var/run/mysqld/mysqld.sock
     check_implicit_admin: yes
   loop:
-    - "%"
-    - "localhost"
+    - { name: "{{ wsrep_sst_auth.split(':')[0] }}", host: "%" }
+    - { name: "root", host: "%" }
+    - { name: "root", host: "localhost" }
   become: yes
   run_once: true
+  delegate_to: "{{ groups['galera'][0] }}"
