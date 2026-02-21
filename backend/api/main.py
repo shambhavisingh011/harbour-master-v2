@@ -3,6 +3,7 @@ import os
 import json
 import asyncio
 import re
+import pymysql
 from pathlib import Path
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.exceptions import RequestValidationError
@@ -190,3 +191,46 @@ async def trigger_deployment(request: ClusterDeploymentRequest):
     except Exception as e:
         websocket_log_handler(f"\n System Error: {str(e)}\n")
         raise HTTPException(status_code=500, detail=f"System Error: {str(e)}")
+
+@app.post("/api/create-db")
+async def create_custom_db(data: dict):
+    # Required keys: db_name, db_user, db_password, admin_password, vip
+    db_name = data.get('db_name')
+    db_user = data.get('db_user')
+    db_pass = data.get('db_password')
+
+    try:
+        conn = pymysql.connect(
+            host=data['vip'],
+            user='root',
+            password=data['admin_password'],
+            connect_timeout=5
+        )
+        with conn.cursor() as cursor:
+            # 1. CHECK: Does the database already exist?
+            cursor.execute("SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = %s", (db_name,))
+            if cursor.fetchone():
+                raise HTTPException(status_code=400, detail=f"Database '{db_name}' already exists.")
+
+            # 2. CHECK: Does the user already exist?
+            cursor.execute("SELECT User FROM mysql.user WHERE User = %s", (db_user,))
+            if cursor.fetchone():
+                 raise HTTPException(status_code=400, detail=f"User '{db_user}' already exists. Choose a unique username.")
+
+            # 3. EXECUTION: If checks pass, create the assets
+            # Use backticks for DB names to prevent issues with reserved words
+            cursor.execute(f"CREATE DATABASE `{db_name}`;")
+            cursor.execute(f"CREATE USER '{db_user}'@'%' IDENTIFIED BY %s;", (db_pass,))
+            cursor.execute(f"GRANT ALL PRIVILEGES ON `{db_name}`.* TO '{db_user}'@'%';")
+            cursor.execute("FLUSH PRIVILEGES;")
+
+        conn.close()
+        return {"status": "success", "message": f"Successfully provisioned {db_name} for {db_user}."}
+
+    except pymysql.Error as e:
+        # Catch MySQL specific errors (like connection issues)
+        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
+    except Exception as e:
+        # Re-raise HTTP exceptions from our checks, catch others
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=str(e))

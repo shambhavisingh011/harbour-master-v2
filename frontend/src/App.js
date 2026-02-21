@@ -31,7 +31,10 @@ function App() {
   const [logs, setLogs] = useState([]);
   const [streamStatus, setStreamStatus] = useState("Disconnected");
   const logContainerRef = useRef(null);
-
+  const [dbForm, setDbForm] = useState({ name: '', user: '', pass: '' });
+  const [dbLoading, setDbLoading] = useState(false);
+  const [dbMessage, setDbMessage] = useState(null);
+  const [showDbPassword, setShowDbPassword] = useState(false);
   // --- CONFIGURATION DATA ---
   const [formData, setFormData] = useState({
     mariadb_version: "10.11",
@@ -250,7 +253,38 @@ function App() {
   );
 
   const getGrafanaURL = () => `http://${formData.monitor_ip}:3000/dashboards`;
-
+  const handleCreateDB = async () => {
+    if (!dbForm.name || !dbForm.user || !dbForm.pass) {
+        setDbMessage({ type: 'error', text: "All fields are required!" });
+        return;
+    }
+    setDbLoading(true);
+    setDbMessage(null);
+    try {
+        const response = await fetch('http://192.168.64.191:8000/api/create-db', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                db_name: dbForm.name,
+                db_user: dbForm.user,
+                db_password: dbForm.pass,
+                admin_password: formData.db_admin_password, // From Page 1
+                vip: formData.lvs_vip // From Page 1
+            })
+        });
+        const data = await response.json();
+        if (response.ok) {
+            setDbMessage({ type: 'success', text: data.message });
+            setDbForm({ name: '', user: '', pass: '' }); // Reset
+        } else {
+            throw new Error(data.detail);
+        }
+    } catch (err) {
+        setDbMessage({ type: 'error', text: err.message });
+    } finally {
+        setDbLoading(false);
+    }
+};
   // --- LOGIN PAGE RENDER ---
   if (!isAuthenticated) {
     return (
@@ -539,23 +573,112 @@ function App() {
                 </div>
               </div>
             )}
+        {/* 2. PROVISION CUSTOM DATABASE (Add this here) */}
+    {progress === 100 && (
+        <div style={formCard}>
+            <h3 style={cardTitle}><Database size={18} color="#6739B7" /> Provision Custom Database</h3>
+            <p style={{ fontSize: '12px', color: '#666', marginBottom: '15px' }}>
+                Create an isolated database and user on the new cluster via LVS VIP.
+            </p>
 
-            {!report && (
-                <div style={emptyResults}>
-                    <div style={{ opacity: 0.5 }}>{loading ? <Loader2 className="animate-spin-loop" size={40} /> : <Cpu size={40} />}</div>
-                    <div style={{ marginTop: '10px' }}>{loading ? "Orchestrating MariaDB HA..." : "Ready for Deployment"}</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                    <div>
+                        <RequiredLabel>Database Name</RequiredLabel>
+                        <input
+                            style={inputStyle}
+                            placeholder="e.g. app_prod"
+                            value={dbForm.name}
+                            onChange={(e) => setDbForm({ ...dbForm, name: e.target.value })}
+                        />
+                    </div>
+                    <div>
+                        <RequiredLabel>Username</RequiredLabel>
+                        <input
+                            style={inputStyle}
+                            placeholder="e.g. app_user"
+                            value={dbForm.user}
+                            onChange={(e) => setDbForm({ ...dbForm, user: e.target.value })}
+                        />
+                    </div>
+                </div>
+	        <div>
+    <RequiredLabel>Password</RequiredLabel>
+    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+        <input
+            type={showDbPassword ? "text" : "password"}
+            style={{ 
+                ...inputStyle, 
+                marginBottom: 0, 
+                paddingRight: '45px' // Space for the icon
+            }}
+            placeholder="••••••••"
+            value={dbForm.pass}
+            onChange={(e) => setDbForm({ ...dbForm, pass: e.target.value })}
+        />
+        <button
+            type="button"
+            onClick={() => setShowDbPassword(!showDbPassword)}
+            style={{
+                position: 'absolute',
+                right: '10px',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: '#6739B7',
+                padding: '5px',
+                display: 'flex',
+                alignItems: 'center'
+            }}
+        >
+            {showDbPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+        </button>
+    </div>
+</div>
+            </div>
+
+            <button
+                onClick={handleCreateDB}
+                disabled={dbLoading || !dbForm.name || !dbForm.user}
+                style={{ ...deployBtn, marginTop: '20px', width: '100%', backgroundColor: '#6739B7' }}
+            >
+                {dbLoading ? <Loader2 className="animate-spin-loop" size={18} /> : <Zap size={18} />}
+                PROVISION DB
+            </button>
+
+            {dbMessage && (
+                <div style={{
+                    marginTop: '15px',
+                    padding: '10px',
+                    borderRadius: '4px',
+                    backgroundColor: dbMessage.type === 'success' ? '#e8f5e9' : '#ffebee',
+                    color: dbMessage.type === 'success' ? '#2e7d32' : '#c62828',
+                    fontSize: '13px'
+                }}>
+                    {dbMessage.text}
                 </div>
             )}
+        </div>
+    )}
 
-            {error && (
-              <div style={{...errorBox, marginTop: '10px'}}>
-                <div style={{display: 'flex', gap: '10px', alignItems: 'center'}}>
-                  <AlertTriangle size={18} />
-                  <span><strong>Deployment Error:</strong> {error}</span>
-                </div>
-              </div>
-            )}
-          </div>
+    {/* 3. PLACEHOLDER (Existing) */}
+    {!report && (
+        <div style={emptyResults}>
+            <div style={{ opacity: 0.5 }}>{loading ? <Loader2 className="animate-spin-loop" size={40} /> : <Cpu size={40} />}</div>
+            <div style={{ marginTop: '10px' }}>{loading ? "Orchestrating MariaDB HA..." : "Ready for Deployment"}</div>
+        </div>
+    )}
+
+    {/* 4. ERROR BOX (Existing) */}
+    {error && (
+        <div style={{ ...errorBox, marginTop: '10px' }}>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <AlertTriangle size={18} />
+                <span><strong>Deployment Error:</strong> {error}</span>
+            </div>
+        </div>
+    )}
+</div>
 	{/* RIGHT COLUMN: Progress, Actions, and Console */}
           <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 100px)', gap: '15px' }}>
 
@@ -664,12 +787,13 @@ function App() {
             )}
 
             {/* DEPLOYMENT CONSOLE */}
-            <div style={{ ...formCard, backgroundColor: '#0d1117', borderLeft: '4px solid #6739B7', display: 'flex', flexDirection: 'column', flex: 1, maxHeight: showPreview ? 'calc(100vh - 650px)' : 'calc(100vh - 450px)' }}>
+            <div style={{ ...formCard, backgroundColor: '#0d1117', borderLeft: '4px solid #6739B7', display: 'flex', flexDirection: 'column', flex: 1, maxHeight:'none',marginBottom: '0',overflow: 'hidden' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                   <h3 style={{ ...cardTitle, color: '#d1c4e9', margin: 0 }}><Terminal size={18} /> Deployment Console</h3>
                   <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '10px', backgroundColor: streamStatus === "Connected" ? "#166534" : "#b91c1c", color: 'white', fontWeight: 'bold' }}>{streamStatus.toUpperCase()}</span>
                 </div>
-                <div ref={logContainerRef} style={consoleBox}>
+                <div ref={logContainerRef} style={{ ...consoleBox,flex: 1,overflowY: 'auto',height: '100%'}}>
+
                     {logs.length === 0 && !loading && <div style={{color: '#4c566a'}}>Terminal ready. Click 'START ORCHESTRATION' to begin.</div>}
                     {logs.map((log, idx) => (
                         <div key={idx} style={{ borderBottom: '1px solid #1a1a1a', padding: '2px 0', whiteSpace: 'pre-wrap', color: log.includes('TASK [') ? '#58a6ff' : log.includes('PLAY [') ? '#d29922' : log.includes('failed=') && !log.includes('failed=0') ? '#ff5f56' : '#a3be8c', fontSize: '13px' }}>{log}</div>
