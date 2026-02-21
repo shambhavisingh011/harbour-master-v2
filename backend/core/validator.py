@@ -101,6 +101,13 @@ class InfrastructureValidator:
             sst_pass = request.wsrep_sst_auth.split(":")[1]
             if not re.match(self.pass_regex, sst_pass):
                 return False, "Security Error: SST Password does not meet complexity standards (Upper, Lower, Num, Special)."
+            if not re.match(self.pass_regex, request.db_admin_password):
+                return False, "Security Error: Database Admin Password does not meet complexity standards."
+
+            # Ensure they are not the same
+            if sst_pass == request.db_admin_password:
+                return False, "Security Error: Database Admin Password and SST Password must be different."
+
         except IndexError:
             return False, "Format Error: wsrep_sst_auth must be 'user:password'."
 

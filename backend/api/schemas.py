@@ -29,7 +29,11 @@ class ClusterDeploymentRequest(BaseModel):
     
     repl_user: str = Field(default="repl_user")
     repl_password: str = Field(..., min_length=8)
-
+    db_admin_password: str = Field(
+        ..., 
+        min_length=8, 
+        description="Password for the MariaDB 'root' user. Must be unique from SST password."
+    )
     # --- Core Galera Parameters ---
     wsrep_cluster_name: str
     wsrep_on: str = "ON"
@@ -81,6 +85,12 @@ class ClusterDeploymentRequest(BaseModel):
         if ":" not in v:
             raise ValueError("SST Auth must be in 'user:password' format.")
         return v
+    @model_validator(mode='after')
+    def validate_password_uniqueness(self) -> 'ClusterDeploymentRequest':
+        sst_password = self.wsrep_sst_auth.split(':')[1]
+        if self.db_admin_password == sst_password:
+            raise ValueError("Security Risk: Database Admin Password must be different from SST Password.")
+        return self
 
     @model_validator(mode='after')
     def validate_all_ips_unique(self) -> 'ClusterDeploymentRequest':

@@ -110,9 +110,7 @@ class HarborHealthChecker:
 
     def run_diagnostics(self):
         self._log_debug("Starting Harbor Master Diagnostic Suite...")
-        try:
-            _, mysql_pass = self.request.wsrep_sst_auth.split(':')
-        except: mysql_pass = ""
+        mysql_pass = self.request.db_admin_password if hasattr(self.request, 'db_admin_password') else ""
 
         # Tier 1: Galera
         for node in self.request.galera_nodes:

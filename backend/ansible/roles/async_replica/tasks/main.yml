@@ -10,7 +10,7 @@
   become: yes
 
 - name: Identify Healthy Galera Nodes
-  shell: "mariadb -u root -p'{{ wsrep_sst_auth.split(':')[1] }}' -N -s -e \"SHOW STATUS LIKE 'wsrep_local_state_comment';\""
+  shell: "mariadb -u root -p'{{ db_admin_password }}' -N -s -e \"SHOW STATUS LIKE 'wsrep_local_state_comment';\""
   become: yes
   delegate_to: "{{ item }}"
   loop: "{{ groups['galera'] }}"
@@ -25,7 +25,7 @@
   run_once: true
 
 - name: Check current Replication Status on Async Node
-  shell: "mariadb -u root -p'{{ wsrep_sst_auth.split(':')[1] }}' -e 'SHOW REPLICA STATUS\\G'"
+  shell: "mariadb -u root -p'{{ db_admin_password }}' -e 'SHOW REPLICA STATUS\\G'"
   register: slave_status_raw
   ignore_errors: yes
   become: yes
@@ -45,7 +45,7 @@
     priv: "*.*:REPLICATION SLAVE"
     state: present
     login_user: root
-    login_password: "{{ wsrep_sst_auth.split(':')[1] }}"
+    login_password: "{{ db_admin_password }}"
     login_unix_socket: /var/run/mysqld/mysqld.sock
     check_implicit_admin: yes
   become: yes
@@ -74,13 +74,13 @@
 - name: Grant Control Node access to Async Node for Diagnostics
   community.mysql.mysql_user:
     name: root
-    password: "{{ wsrep_sst_auth.split(':')[1] }}"
+    password: "{{ db_admin_password }}"
     # Robust IP detection: Try SSH_CLIENT, then Control Node IP, then fallback to Head Node's specific subnet IP
     host: "{{ (ansible_env.SSH_CLIENT | default('')).split() | first | default(hostvars['localhost']['ansible_default_ipv4']['address'] | default('192.168.64.191')) }}"
     priv: "*.*:ALL,GRANT"
     state: present
     login_user: root
-    login_password: "{{ wsrep_sst_auth.split(':')[1] }}"
+    login_password: "{{ db_admin_password }}"
     login_unix_socket: /var/run/mysqld/mysqld.sock
   become: yes
 
@@ -94,15 +94,15 @@
 # 3. THE "NUCLEAR" RESET
 - name: Hard Reset Slave State for GTID alignment
   shell: |
-    mariadb -u root -p'{{ wsrep_sst_auth.split(":")[1] }}' -e "STOP REPLICA;"
-    mariadb -u root -p'{{ wsrep_sst_auth.split(":")[1] }}' -e "RESET REPLICA ALL;"
-    mariadb -u root -p'{{ wsrep_sst_auth.split(":")[1] }}' -e "SET GLOBAL gtid_slave_pos = '';"
+    mariadb -u root -p'{{ db_admin_password }}' -e "STOP REPLICA;"
+    mariadb -u root -p'{{ db_admin_password }}' -e "RESET REPLICA ALL;"
+    mariadb -u root -p'{{ db_admin_password }}' -e "SET GLOBAL gtid_slave_pos = '';"
   become: yes
   when: not (is_replication_healthy | default(false))
 
 # 4. CAPTURE MASTER POSITION
 - name: Get Master GTID Position
-  shell: "mariadb -u root -p'{{ wsrep_sst_auth.split(':')[1] }}' -N -s -e 'SELECT @@gtid_binlog_pos;'"
+  shell: "mariadb -u root -p'{{ db_admin_password }}' -N -s -e 'SELECT @@gtid_binlog_pos;'"
   become: yes
   delegate_to: "{{ active_galera_master }}"
   register: master_gtid
@@ -111,7 +111,7 @@
 
 # 5. SYNC SLAVE POSITION
 - name: Align Slave GTID position
-  shell: "mariadb -u root -p'{{ wsrep_sst_auth.split(':')[1] }}' -e \"SET GLOBAL gtid_slave_pos = '{{ master_gtid.stdout | trim }}';\""
+  shell: "mariadb -u root -p'{{ db_admin_password }}' -e \"SET GLOBAL gtid_slave_pos = '{{ master_gtid.stdout | trim }}';\""
   become: yes
   when: 
     - not (is_replication_healthy | default(false))
@@ -128,7 +128,7 @@
     primary_password: "{{ repl_password }}"
     primary_use_gtid: replica_pos
     login_user: root
-    login_password: "{{ wsrep_sst_auth.split(':')[1] }}"
+    login_password: "{{ db_admin_password }}"
     login_unix_socket: /var/run/mysqld/mysqld.sock
   become: yes
   when: not (is_replication_healthy | default(false))
@@ -137,14 +137,14 @@
   community.mysql.mysql_replication:
     mode: startreplica
     login_user: root
-    login_password: "{{ wsrep_sst_auth.split(':')[1] }}"
+    login_password: "{{ db_admin_password }}"
     login_unix_socket: /var/run/mysqld/mysqld.sock
   become: yes
   when: not (is_replication_healthy | default(false))
 
 # 7. FINAL VERIFICATION
 - name: Verify Replication Status
-  shell: "mariadb -u root -p'{{ wsrep_sst_auth.split(':')[1] }}' -e 'SHOW REPLICA STATUS\\G'"
+  shell: "mariadb -u root -p'{{ db_admin_password }}' -e 'SHOW REPLICA STATUS\\G'"
   register: final_check
   become: yes
   until: '"Slave_IO_Running: Yes" in final_check.stdout and "Slave_SQL_Running: Yes" in final_check.stdout'

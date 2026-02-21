@@ -14,6 +14,7 @@ function App() {
   const [report, setReport] = useState(null);
   const [error, setError] = useState(null);
   const [showSSTPass, setShowSSTPass] = useState(false);
+  const [showDBAdminPass, setShowDBAdminPass] = useState(false);
   const [showReplPass, setShowReplPass] = useState(false);
   const [previewContent, setPreviewContent] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
@@ -47,7 +48,7 @@ function App() {
     default_storage_engine: "InnoDB", innodb_autoinc_lock_mode: "2",
     bind_address: "0.0.0.0", wsrep_sst_method: "mariabackup",
     wsrep_sst_auth: "sst_user:password", repl_user: "repl_user",
-    repl_password: "ReplicaSecurePass123!",
+    repl_password: "ReplicaSecurePass123!",db_admin_password: "AdminSecurePass123!",
     wsrep_strict_ddl: "ON", wsrep_replicate_myisam: "OFF", expire_logs_days: "7",
     wsrep_mode: "REQUIRED_PRIMARY_KEY,STRICT_REPLICATION", binlog_expire_logs_seconds: "604800",
     innodb_buffer_pool_instances: "1", wsrep_slave_threads: "4",
@@ -148,6 +149,11 @@ function App() {
   const handleVerifyAndProceed = async () => {
     setValidating(true);
     setError(null);
+    if (!formData.db_admin_password || formData.db_admin_password.trim() === "") {
+    setError("Database Admin Password is required to secure the cluster.");
+    setValidating(false);
+    return; // Stop the execution
+  }
     const payload = preparePayload();
     try {
       const response = await fetch('http://192.168.64.191:8000/validate', {
@@ -201,6 +207,7 @@ function App() {
   const preparePayload = () => {
     return {
       ...formData,
+      db_admin_password: formData.db_admin_password,
       innodb_autoinc_lock_mode: parseInt(formData.innodb_autoinc_lock_mode),
       expire_logs_days: parseInt(formData.expire_logs_days),
       binlog_expire_logs_seconds: parseInt(formData.binlog_expire_logs_seconds),
@@ -350,6 +357,23 @@ function App() {
                     <button type="button" onClick={() => setShowSSTPass(!showSSTPass)} style={eyeBtn}>{showSSTPass ? <EyeOff size={16} /> : <Eye size={16} />}</button>
                   </div>
                 </div>
+	        <div style={formCard}>
+  <h3 style={cardTitle}><Lock size={18} color="#6739B7" /> DB Admin Security</h3>
+  <RequiredLabel>db_admin_password</RequiredLabel>
+  <div style={passwordWrapper}>
+    <input 
+      type={showDBAdminPass ? "text" : "password"} 
+      name="db_admin_password" 
+      value={formData.db_admin_password} 
+      onChange={handleChange} 
+      style={inputStylePassword} 
+      placeholder="Enter MariaDB Root Password"
+    />
+    <button type="button" onClick={() => setShowDBAdminPass(!showDBAdminPass)} style={eyeBtn}>
+      {showDBAdminPass ? <EyeOff size={16} /> : <Eye size={16} />}
+    </button>
+  </div>
+</div>
                 <div style={formCard}>
                   <h3 style={cardTitle}><ShieldCheck size={18} color="#6739B7" /> Replication</h3>
                   <RequiredLabel>repl_user</RequiredLabel><input name="repl_user" value={formData.repl_user} onChange={handleChange} style={inputStyle} />

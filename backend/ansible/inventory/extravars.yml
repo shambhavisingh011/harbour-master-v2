@@ -2,6 +2,7 @@ async_ip: 192.168.64.7
 bind_address: 0.0.0.0
 binlog_expire_logs_seconds: 604800
 binlog_format: ROW
+db_admin_password: AdminSecurePass123!
 default_storage_engine: InnoDB
 expire_logs_days: 7
 galera_node_list:

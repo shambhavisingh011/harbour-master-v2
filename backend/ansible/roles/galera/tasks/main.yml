@@ -19,7 +19,8 @@
   shell: |
     STATUS=$(mariadb -u root -N -s -e "SHOW STATUS LIKE 'wsrep_local_state_comment';" 2>/dev/null | awk '{print $2}')
     if [ -z "$STATUS" ]; then
-      PASS="{{ wsrep_sst_auth.split(':')[1] }}"
+      # CHANGED: Using db_admin_password instead of SST password
+      PASS="{{ db_admin_password }}" 
       STATUS=$(mariadb -u root -p"$PASS" -N -s -e "SHOW STATUS LIKE 'wsrep_local_state_comment';" 2>/dev/null | awk '{print $2}')
     fi
     echo "${STATUS:-OFFLINE}"
@@ -59,7 +60,6 @@
 # ===============================================================
 # PHASE 2: CLUSTER INITIALIZATION (The 2-Case Logic)
 # ===============================================================
-
 - name: "EXECUTION: Handle Cluster Start"
   block:
     - name: "STOP: Kill standalone or broken MariaDB processes"
@@ -70,11 +70,19 @@
     # --- CASE A: Cluster is NOT formed (Bootstrap from Node 01) ---
     - name: "CASE A: Bootstrap Primary Node"
       block:
+        # NEW: Check if the file exists before editing it
+        - name: "CHECK: Check if grastate.dat exists"
+          stat:
+            path: /var/lib/mysql/grastate.dat
+          register: grastate_file
+
         - name: "Force safe_to_bootstrap"
           lineinfile:
             path: /var/lib/mysql/grastate.dat
             regexp: '^safe_to_bootstrap: 0'
             line: 'safe_to_bootstrap: 1'
+          when: grastate_file.stat.exists # Only run if file is actually there
+
         - name: "Initialize Galera New Cluster"
           command: galera_new_cluster
       when: inventory_hostname == groups['galera'][0]
@@ -90,7 +98,6 @@
   # This whole block ONLY runs if the node is not already synced 
   # AND no other node is already providing a healthy cluster.
   when: not is_synced and not cluster_is_alive
-
 # ===============================================================
 # PHASE 3: NETWORKING & HA
 # ===============================================================
@@ -128,10 +135,10 @@
 # ===============================================================
 # PHASE 4: FINAL VALIDATION & USERS
 # ===============================================================
-
 - name: "WAIT: Ensure node is Synced before finishing"
   shell: |
-    PASS="{{ wsrep_sst_auth.split(':')[1] }}"
+    # CHANGED: Using db_admin_password
+    PASS="{{ db_admin_password }}"
     mariadb -u root -p"$PASS" -N -s -e "SHOW STATUS LIKE 'wsrep_local_state_comment';"
   become: yes
   register: final_sync
@@ -139,6 +146,7 @@
   retries: 30
   delay: 10
   when: not is_synced
+
 - name: "SSH: Authorize LVS Health Check Key"
   ansible.builtin.authorized_key:
     user: root
@@ -149,13 +157,16 @@
 
 - name: "USERS: Setup Cluster Access"
   community.mysql.mysql_user:
+    # Logic: If item.name is root, use db_admin_password; otherwise use SST password
     name: "{{ item.name }}"
-    password: "{{ wsrep_sst_auth.split(':')[1] }}"
+    password: "{{ (item.name == 'root') | ternary(db_admin_password, wsrep_sst_auth.split(':')[1]) }}"
     host: "{{ item.host }}"
-    priv: "*.*:ALL,GRANT"
+    # Logic: Give root ALL privileges, give SST user only sync privileges
+    priv: "{{ (item.name == 'root') | ternary('*.*:ALL,GRANT', '*.*:RELOAD,PROCESS,LOCK TABLES,REPLICATION CLIENT') }}"
     state: present
     login_user: root
-    login_password: "{{ wsrep_sst_auth.split(':')[1] }}"
+    # CHANGED: login_password is now the db_admin_password
+    login_password: "{{ db_admin_password }}"
     login_unix_socket: /var/run/mysqld/mysqld.sock
     check_implicit_admin: yes
   loop:
@@ -165,3 +176,18 @@
   become: yes
   run_once: true
   delegate_to: "{{ groups['galera'][0] }}"
+
+- name: "USERS: Setup Replication User for Async Node"
+  community.mysql.mysql_user:
+    name: "{{ repl_user }}"
+    password: "{{ repl_password }}"
+    host: "%"
+    priv: "*.*:REPLICATION SLAVE"
+    state: present
+    login_user: root
+    login_password: "{{ db_admin_password }}"
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+  become: yes
+  run_once: true
+  delegate_to: "{{ groups['galera'][0] }}"
+

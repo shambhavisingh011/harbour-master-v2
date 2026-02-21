@@ -17,7 +17,7 @@
     priv: "*.*:PROCESS,REPLICATION CLIENT,SELECT"
     state: present
     login_user: root
-    login_password: "{{ wsrep_sst_auth.split(':')[1] }}"
+    login_password: "{{ db_admin_password }}"
     login_unix_socket: /var/run/mysqld/mysqld.sock
     check_implicit_admin: yes
   become: yes

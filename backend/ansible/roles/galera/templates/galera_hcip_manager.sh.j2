@@ -1,5 +1,5 @@
 #!/bin/bash
-PASS="{{ wsrep_sst_auth.split(':')[1] }}"
+PASS="{{ db_admin_password }}"
 
 # 1. Check if MariaDB is responding
 if ! mariadb -u root -p"$PASS" --connect-timeout=2 -e "status" >/dev/null 2>&1; then
