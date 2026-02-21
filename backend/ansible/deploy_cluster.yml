@@ -1,6 +1,8 @@
 ---
-# PHASE 0: Generate Shared Secrets & Keys
-- name: Phase 0 - Infrastructure Handshake Preparation
+# ===============================================================
+# PHASE 0: INFRASTRUCTURE HANDSHAKE
+# ===============================================================
+- name: "PHASE: PRE_FLIGHT_START"
   hosts: localhost
   connection: local
   gather_facts: false
@@ -16,11 +18,13 @@
         path: "{{ playbook_dir }}/roles/lvs/files/id_rsa"
         type: rsa
         size: 4096
-        force: false  # Do not overwrite existing keys
+        force: false
       register: key_gen
 
-# PHASE 1: Base Preparation (OS & Repos)
-- name: Phase 1 - Prepare All Nodes
+# ===============================================================
+# PHASE 1: OS PREPARATION
+# ===============================================================
+- name: "PHASE: MARIADB_PREP_START"
   hosts: all
   serial: 2
   become: yes
@@ -42,33 +46,47 @@
   roles:
     - common
 
-# PHASE 3: Galera Cluster Installation & Configuration
-- name: Phase 3 - Build Galera Cluster
+# ===============================================================
+# PHASE 3: GALERA CLUSTER (The Core)
+# ===============================================================
+- name: "PHASE: GALERA_SETUP_START"
   hosts: galera
   become: yes
-  # Critical: Galera bootstrap is very RAM heavy
   serial: 1 
   roles:
     - galera
 
-# PHASE 4: Setup High Availability (Load Balancers)
-- name: Setup LVS Load Balancers
+# ===============================================================
+# PHASE 4: HIGH AVAILABILITY
+# ===============================================================
+- name: "PHASE: LVS_SETUP_START"
   hosts: lvs
   become: yes
   roles:
     - lvs
 
-# PHASE 5: Setup Async Replication
-- name: Configure Async Replica
+# ===============================================================
+# PHASE 5: ASYNC REPLICATION
+# ===============================================================
+- name: "PHASE: ASYNC_SETUP_START"
   hosts: async
   become: yes
   roles:
     - async_replica
 
-# PHASE 6: Setup Monitoring
-- name: Deploy Monitoring Stack
+# ===============================================================
+# PHASE 6: MONITORING STACK
+# ===============================================================
+- name: "PHASE: MONITORING_SETUP_START"
   hosts: all
   become: yes
   serial: 2
   roles:
     - monitoring
+
+- name: "PHASE: DEPLOYMENT_COMPLETE"
+  hosts: localhost
+  connection: local
+  tasks:
+    - debug:
+        msg: "Harbor Master Deployment Finished Successfully."

@@ -2,10 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Activity, Server, Database, Loader2, CheckCircle, XCircle, Globe, Zap, Settings, Lock, Eye, EyeOff, ShieldCheck, Layers, Info, Network, Cpu, Terminal, ArrowRight, ArrowLeft, AlertTriangle, Play, FileCode, Download, User, LogIn } from 'lucide-react';
 
 function App() {
+  // --- AUTHENTICATION STATE ---
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loginData, setLoginData] = useState({ username: '', password: '' });
   const [loginError, setLoginError] = useState('');
-  
+
+  // --- UI & DEPLOYMENT STATE ---
   const [page, setPage] = useState(1); // 1: Config, 2: Deployment/Monitor
   const [loading, setLoading] = useState(false);
   const [validating, setValidating] = useState(false);
@@ -15,12 +17,21 @@ function App() {
   const [showReplPass, setShowReplPass] = useState(false);
   const [previewContent, setPreviewContent] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
-  
-  // --- LOGGING STATE ---
+  const [progress, setProgress] = useState(0);
+  const [milestones, setMilestones] = useState({
+    mariadb: "pending", 
+    galera: "pending",
+    lvs: "pending",
+    async: "pending",
+    monitoring: "pending"
+  });
+
+  // --- LOGGING & STREAMING STATE ---
   const [logs, setLogs] = useState([]);
   const [streamStatus, setStreamStatus] = useState("Disconnected");
   const logContainerRef = useRef(null);
 
+  // --- CONFIGURATION DATA ---
   const [formData, setFormData] = useState({
     mariadb_version: "10.11",
     node1_ip: "192.168.64.192", node1_name: "db-node-01",
@@ -29,9 +40,9 @@ function App() {
     lvs1_ip: "192.168.64.196", lvs2_ip: "192.168.64.197",
     async_ip: "192.168.64.199", monitor_ip: "192.168.64.201",
     lvs_vip: "192.168.64.150",
-    wsrep_cluster_name: "Galera_Cluster", 
+    wsrep_cluster_name: "Galera_Cluster",
     wsrep_on: "ON",
-    wsrep_provider: "/usr/lib/galera/libgalera_smm.so", 
+    wsrep_provider: "/usr/lib/galera/libgalera_smm.so",
     binlog_format: "ROW",
     default_storage_engine: "InnoDB", innodb_autoinc_lock_mode: "2",
     bind_address: "0.0.0.0", wsrep_sst_method: "mariabackup",
@@ -43,43 +54,92 @@ function App() {
     innodb_undo_tablespaces: "3", wsrep_gtid_domain_id: "1"
   });
 
-  useEffect(() => {
-    let eventSource;
-    if (isAuthenticated) {
-      const setupSSE = () => {
-        eventSource = new EventSource('http://192.168.64.191:8000/api/logs/stream');
-        eventSource.onopen = () => setStreamStatus("Connected");
-        eventSource.onmessage = (event) => setLogs((prev) => [...prev, event.data]);
-        eventSource.onerror = (err) => {
-          setStreamStatus("Disconnected");
-          eventSource.close();
-        };
-      };
-      setupSSE();
-    }
-    return () => { if (eventSource) eventSource.close(); };
-  }, [isAuthenticated]);
-
-  useEffect(() => {
-    if (logContainerRef.current) {
-      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
-    }
-  }, [logs]);
-
+  // --- AUTHENTICATION HANDLERS ---
   const handleLoginChange = (e) => {
-    setLoginData({ ...loginData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setLoginData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleLoginSubmit = (e) => {
     e.preventDefault();
-    // Simple mock logic - replace with your backend auth call
     if (loginData.username === 'admin' && loginData.password === 'admin') {
       setIsAuthenticated(true);
       setLoginError('');
     } else {
-      setLoginError('Invalid username or password');
+      setLoginError('Invalid credentials. Hint: use admin/admin');
     }
   };
+
+  // --- SSE LOG STREAMING EFFECT ---
+  useEffect(() => {
+    let eventSource;
+    let reconnectionTimeout;
+      const setupSSE = () => {
+	if (isAuthenticated && page === 2) {
+        console.log("Initiating SSE Connection...");
+        eventSource = new EventSource('http://192.168.64.191:8000/api/logs/stream');
+        eventSource.onopen = () => {
+          setStreamStatus("Connected");
+          console.log("SSE Connected Successfully");
+        };
+
+        eventSource.onmessage = (event) => {
+          const line = event.data;
+
+          // 1. Progress & Milestone Success Logic
+          if (line.includes("PHASE: MARIADB_PREP_START")) {
+            setMilestones(m => ({...m, mariadb: "loading"}));
+            setProgress(15);
+          } else if (line.includes("PHASE: GALERA_SETUP_START")) {
+            setMilestones(m => ({...m, mariadb: "done", galera: "loading"}));
+            setProgress(40);
+          } else if (line.includes("PHASE: LVS_SETUP_START")) {
+            setMilestones(m => ({...m, galera: "done", lvs: "loading"}));
+            setProgress(65);
+          } else if (line.includes("PHASE: ASYNC_SETUP_START")) {
+            setMilestones(m => ({...m, lvs: "done", async: "loading"}));
+            setProgress(80);
+          } else if (line.includes("PHASE: MONITORING_SETUP_START")) {
+            setMilestones(m => ({...m, async: "done", monitoring: "loading"}));
+            setProgress(90);
+          } else if (line.includes("PHASE: DEPLOYMENT_COMPLETE")) {
+            setMilestones(m => ({...m, monitoring: "done"}));
+            setProgress(100);
+          }
+
+          // 2. Error Detection Logic (MOVED INSIDE ONMESSAGE)
+          if (line.includes("FAILED!") || line.includes("ERROR!")) {
+            setMilestones(m => {
+              const newMilestones = { ...m };
+              for (let key in newMilestones) {
+                if (newMilestones[key] === "loading") {
+                  newMilestones[key] = "failed";
+                }
+              }
+              return newMilestones;
+            });
+          }
+
+          // 3. Update the logs
+          setLogs((prev) => [...prev, line]);
+        }; // <-- onmessage ends here
+
+        eventSource.onerror = (err) => {
+          console.error("SSE Error occurred. Attempting to reconnect...");
+          setStreamStatus("Disconnected");
+          eventSource.close();
+        reconnectionTimeout = setTimeout(() => {
+            setupSSE();
+          }, 3000);
+        };
+      }
+    };
+    setupSSE();
+  return () => {
+      if (eventSource) eventSource.close();
+      if (reconnectionTimeout) clearTimeout(reconnectionTimeout);
+    };
+  }, [isAuthenticated, page]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -92,8 +152,8 @@ function App() {
     try {
       const response = await fetch('http://192.168.64.191:8000/validate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+	      headers: { 'Content-Type': 'application/json' },
+	      body: JSON.stringify(payload)
       });
       const data = await response.json();
       if (!response.ok) {
@@ -352,60 +412,117 @@ function App() {
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: '20px', alignItems: 'start' }}>
+          
+          {/* LEFT COLUMN: Health Reports */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <button 
-                onClick={() => {setPage(1); setError(null); setShowPreview(false);}} 
-                disabled={loading} 
+              <button
+                onClick={() => {
+  setPage(1); 
+  setError(null); 
+  setShowPreview(false);
+  // Reset Deployment States
+  setProgress(0);
+  setMilestones({
+    mariadb: "pending",
+    galera: "pending",
+    lvs: "pending",
+    async: "pending",
+    monitoring: "pending"
+  });
+  setLogs([]); // Optional: Clear logs too for a fresh start
+}}
+                disabled={loading}
                 style={{ ...deployBtn, backgroundColor: loading ? '#b39ddb' : '#7e57c2', padding: '10px', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}
               >
                 <ArrowLeft size={18} /> BACK TO CONFIG
               </button>
-              {report ? (
-                <div style={reportContainer}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                        <h2 style={{ color: '#5f259f', margin: 0, fontSize: '18px' }}>{report.status}</h2>
-                        <div style={{ backgroundColor: report.health_report.overall_status === "Healthy" ? "#166534" : "#b91c1c", color: 'white', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold' }}>{report.health_report.overall_status}</div>
-                    </div>
-                    <a href={getGrafanaURL()} target="_blank" rel="noopener noreferrer" style={grafanaBtn}><Activity size={18} /> OPEN MONITORING DASHBOARD</a>
-                    <div style={healthSection}>
-                        <div style={sectionLabel}><Database size={14}/> Galera Cluster: {report.cluster_name}</div>
-                        {report.health_report.galera.map((node, idx) => (
-                            <div key={idx} style={healthRow}>
-                                <span style={{ fontSize: '12px' }}>{node.host}</span>
-                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                    <span style={{ fontSize: '10px', color: '#666' }}>Size: {node.cluster_size}</span>
-                                    <span style={{ color: node.sync_state === "Synced" ? "#166534" : "#b91c1c", fontSize: '11px', fontWeight: 'bold' }}>{node.sync_state}</span>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                    <div style={healthSection}>
-                        <div style={sectionLabel}><Globe size={14}/> Async Replica</div>
-                        <div style={healthRow}>
-                            <span style={{ fontSize: '12px' }}>{report.health_report.async.host}</span>
-                            <div style={{ display: 'flex', gap: '5px' }}><span style={pill(report.health_report.async.io_running === "Yes")}>IO</span><span style={pill(report.health_report.async.sql_running === "Yes")}>SQL</span></div>
-                        </div>
-                    </div>
-                    <div style={healthSection}>
-                        <div style={sectionLabel}><Network size={14}/> LVS Load Balancers</div>
-                        <div style={{ fontSize: '11px', marginBottom: '8px', color: '#5f259f', fontWeight: 'bold' }}>VIP: {report.lvs_vip}</div>
-                        {report.health_report.lvs.map((lvs, idx) => (
-                            <div key={idx} style={healthRow}>
-                                <span style={{ fontSize: '12px' }}>{lvs.host}</span>
-                                <div style={{ display: 'flex', gap: '8px' }}>
-                                    {lvs.holds_vip && <span style={{ color: '#6739B7', fontWeight: 'bold', fontSize: '10px' }}>[VIP HOLDER]</span>}
-                                    <CheckCircle size={14} color={lvs.routing_active ? "#166534" : "#ccc"} />
-                                </div>
-                            </div>
-                        ))}
+
+            {report && (
+              <div style={reportContainer}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                    <h2 style={{ color: '#5f259f', margin: 0, fontSize: '18px' }}>{report.status}</h2>
+                    <div style={{
+                        backgroundColor: report.health_report.overall_status === "Healthy" ? "#166534" :
+                                        report.health_report.overall_status === "CRITICAL" ? "#b91c1c" : "#f59e0b",
+                        color: 'white', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold'
+                    }}>
+                        {report.health_report.overall_status}
                     </div>
                 </div>
-            ) : (
+
+                <a href={getGrafanaURL()} target="_blank" rel="noopener noreferrer" style={grafanaBtn}>
+                    <Activity size={18} /> OPEN MONITORING DASHBOARD
+                </a>
+
+                {/* GALERA SECTION */}
+                <div style={healthSection}>
+                    <div style={sectionLabel}>
+                        <Database size={14}/> Galera Cluster: {report.cluster_name}
+                        <span style={{ marginLeft: 'auto', color: '#6739B7' }}>Size: {report.health_report.cluster_size}</span>
+                    </div>
+                    {report.health_report.galera.map((node, idx) => (
+                        <div key={idx} style={healthRow}>
+                            <span style={{ fontSize: '12px' }}>{node.host}</span>
+                            <span style={{ color: node.sync_state === "Synced" ? "#166534" : "#b91c1c", fontSize: '11px', fontWeight: 'bold' }}>
+                                {node.sync_state}
+                            </span>
+                        </div>
+                    ))}
+                </div>
+
+                {/* ASYNC SECTION */}
+                <div style={healthSection}>
+                    <div style={sectionLabel}><Globe size={14}/> Async Replica</div>
+                    {report.health_report.async ? (
+                        <div style={healthRow}>
+                            <span style={{ fontSize: '12px' }}>{report.health_report.async.host}</span>
+                            <div style={{ display: 'flex', gap: '5px' }}>
+                                <span style={pill(report.health_report.async.io === "Yes" || report.health_report.async.io_running === "Yes")}>IO</span>
+                                <span style={pill(report.health_report.async.sql === "Yes" || report.health_report.async.sql_running === "Yes")}>SQL</span>
+                            </div>
+                        </div>
+                    ) : <div style={{fontSize: '11px', color: '#999'}}>No Async Node Configured</div>}
+                </div>
+
+                {/* LVS HEALTH SECTION */}
+                <div style={healthSection}>
+                    <div style={sectionLabel}><Network size={14}/> LVS Load Balancers</div>
+                    <div style={{ fontSize: '10px', marginBottom: '8px', color: '#5f259f', display: 'flex', justifyContent: 'space-between' }}>
+                        <span>VIP: {report.lvs_vip}</span>
+                        {report.health_report.active_writer_ip && (
+                            <span style={{fontWeight: 'bold'}}>WRITER: {report.health_report.active_writer_ip}</span>
+                        )}
+                    </div>
+                    {report.health_report.lvs.map((lvs, idx) => (
+                        <div key={idx} style={{...healthRow, flexDirection: 'column', alignItems: 'flex-start', gap: '4px', padding: '8px 0'}}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                                <span style={{ fontSize: '12px', fontWeight: '500' }}>{lvs.host}</span>
+                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                    <span style={{ fontSize: '9px', color: lvs.ssh || lvs.ssh_reachable ? '#166534' : '#b91c1c' }}>
+                                        {lvs.ssh || lvs.ssh_reachable ? "SSH OK" : "SSH FAIL"}
+                                    </span>
+                                    {lvs.vip || lvs.holds_vip ? <Zap size={14} color="#f8961e" title="Holds VIP" /> : null}
+                                    <CheckCircle size={14} color={lvs.target || lvs.pointing_to ? "#166534" : "#ccc"} />
+                                </div>
+                            </div>
+                            {(lvs.target || lvs.pointing_to) && (
+                                <div style={{ fontSize: '10px', color: '#666', fontStyle: 'italic' }}>
+                                    ↳ Routing to: {lvs.target || lvs.pointing_to}
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {!report && (
                 <div style={emptyResults}>
                     <div style={{ opacity: 0.5 }}>{loading ? <Loader2 className="animate-spin-loop" size={40} /> : <Cpu size={40} />}</div>
                     <div style={{ marginTop: '10px' }}>{loading ? "Orchestrating MariaDB HA..." : "Ready for Deployment"}</div>
                 </div>
             )}
+
             {error && (
               <div style={{...errorBox, marginTop: '10px'}}>
                 <div style={{display: 'flex', gap: '10px', alignItems: 'center'}}>
@@ -415,29 +532,94 @@ function App() {
               </div>
             )}
           </div>
-
+	{/* RIGHT COLUMN: Progress, Actions, and Console */}
           <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 100px)', gap: '15px' }}>
+
+            {/* ENHANCED PROGRESS UI WITH ERROR HANDLING */}
+            <div style={formCard}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#5f259f' }}>Deployment Progress</span>
+                    <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#5f259f' }}>{progress}%</span>
+                </div>
+
+                {/* Progress Bar - Turns RED if any milestone failed */}
+                <div style={{ width: '100%', height: '8px', backgroundColor: '#e0e0e0', borderRadius: '4px', overflow: 'hidden' }}>
+                    <div style={{
+                        width: `${progress}%`,
+                        height: '100%',
+                        backgroundColor: Object.values(milestones).includes("failed") ? "#e53935" : "#6739B7",
+                        transition: 'width 0.5s ease-in-out'
+                    }} />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px', marginTop: '20px' }}>
+                    {Object.entries(milestones).map(([key, status]) => (
+                        <div key={key} style={{
+                            padding: '10px', borderRadius: '8px', textAlign: 'center', fontSize: '11px', fontWeight: 'bold',
+                            backgroundColor:
+                                status === 'done' ? '#e8f5e9' :
+                                status === 'failed' ? '#ffebee' :
+                                status === 'loading' ? '#fff3e0' : '#f5f5f5',
+                            color:
+                                status === 'done' ? '#2e7d32' :
+                                status === 'failed' ? '#c62828' :
+                                status === 'loading' ? '#ef6c00' : '#9e9e9e',
+                            border: `1px solid ${
+                                status === 'done' ? '#4caf50' :
+                                status === 'failed' ? '#e53935' :
+                                status === 'loading' ? '#ff9800' : '#e0e0e0'
+                            }`,
+                            textTransform: 'uppercase'
+                        }}>
+                            {status === 'loading' && <Loader2 size={12} className="animate-spin-loop" style={{marginRight: '5px', display: 'inline'}} />}
+                            {status === 'done' && <CheckCircle size={12} style={{marginRight: '5px', display: 'inline'}} />}
+                            {status === 'failed' && <XCircle size={12} style={{marginRight: '5px', display: 'inline'}} />}
+                            {key.replace('_', ' ')}
+                        </div>
+                    ))}
+                </div>
+
+                <p style={{ fontSize: '13px', color: '#666', marginTop: '15px', fontStyle: 'italic', textAlign: 'center' }}>
+                    {Object.values(milestones).includes("failed") ? (
+                        <span style={{ color: '#e53935', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                            <AlertTriangle size={16} /> Deployment halted due to an error. Check logs below.
+                        </span>
+                    ) : (
+                        <>
+                            {progress < 15 && "Initializing infrastructure handshake..."}
+                            {progress >= 15 && progress < 40 && "Installing MariaDB dependencies and repositories..."}
+                            {progress >= 40 && progress < 65 && "Building Galera Cluster (this may take a few minutes)..."}
+                            {progress >= 65 && progress < 80 && "Configuring LVS-DR and Keepalived high availability..."}
+                            {progress >= 80 && progress < 90 && "Setting up Asynchronous replication and GTID tracking..."}
+                            {progress >= 90 && progress < 100 && "Deploying Prometheus exporters and Grafana dashboards..."}
+                            {progress === 100 && "Deployment successful! All systems are operational."}
+                        </>
+                    )}
+                </p>
+            </div>
+
+            {/* ACTION BUTTONS */}
             <div style={{ display: 'flex', gap: '10px' }}>
-              <button 
-                onClick={() => setShowPreview(!showPreview)} 
+              <button
+                onClick={() => setShowPreview(!showPreview)}
                 disabled={loading}
                 style={{ ...deployBtn, backgroundColor: '#607d8b', flex: 1 }}
               >
                 <FileCode size={20} /> {showPreview ? "HIDE PREVIEW" : "PREVIEW CONFIG"}
               </button>
               {!report && (
-                 <button 
-                  onClick={executeDeployment} 
-                  disabled={loading} 
+                <button
+                  onClick={executeDeployment}
+                  disabled={loading}
                   style={{ ...deployBtn, backgroundColor: loading ? '#7cb342' : '#4CAF50', cursor: loading ? 'not-allowed' : 'pointer', flex: 2, boxShadow: '0 4px 10px rgba(76, 175, 80, 0.3)' }}
                 >
-                  {loading ? <Loader2 className="animate-spin-loop" size={20} /> : <Play size={20} />}
+                  {loading ? <Loader2 size={20} className="animate-spin-loop" /> : <Play size={20} />}
                   {loading ? "DEPLOYMENT IN PROGRESS..." : "START ORCHESTRATION"}
                 </button>
               )}
               {(report || error) && !loading && (
-                <button 
-                  onClick={downloadLogs} 
+                <button
+                  onClick={downloadLogs}
                   style={{ ...deployBtn, backgroundColor: '#2196F3', flex: 1, boxShadow: '0 4px 10px rgba(33, 150, 243, 0.3)' }}
                 >
                   <Download size={20} /> DOWNLOAD LOGS
@@ -445,34 +627,20 @@ function App() {
               )}
             </div>
 
+            {/* CONFIG PREVIEW */}
             {showPreview && (
               <div style={{ ...formCard, backgroundColor: '#1e1e1e', border: '1px solid #333', padding: '0', overflow: 'hidden' }}>
                 <div style={{ background: '#333', padding: '8px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ color: '#aaa', fontSize: '11px', fontWeight: 'bold', fontFamily: 'monospace' }}>/etc/mysql/mariadb.conf.d/60-galera.cnf</span>
-                    <div style={{ display: 'flex', gap: '5px' }}>
-                        <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ff5f56' }}></div>
-                        <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ffbd2e' }}></div>
-                        <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#27c93f' }}></div>
-                    </div>
                 </div>
-                <pre style={{ 
-                    margin: 0, 
-                    padding: '20px', 
-                    fontSize: '12px', 
-                    lineHeight: '1.5', 
-                    color: '#d4d4d4', 
-                    background: '#1e1e1e', 
-                    maxHeight: '400px', 
-                    overflowY: 'auto', 
-                    whiteSpace: 'pre-wrap',
-                    fontFamily: '"Fira Code", monospace' 
-                }}>
+                <pre style={{ margin: 0, padding: '20px', fontSize: '12px', lineHeight: '1.5', color: '#d4d4d4', background: '#1e1e1e', maxHeight: '300px', overflowY: 'auto', whiteSpace: 'pre-wrap', fontFamily: '"Fira Code", monospace' }}>
                   {previewContent || "Generating preview..."}
                 </pre>
               </div>
             )}
 
-            <div style={{ ...formCard, backgroundColor: '#0d1117', borderLeft: '4px solid #6739B7', display: 'flex', flexDirection: 'column', flex: 1, maxHeight: showPreview ? 'calc(100vh - 520px)' : 'calc(100vh - 200px)' }}>
+            {/* DEPLOYMENT CONSOLE */}
+            <div style={{ ...formCard, backgroundColor: '#0d1117', borderLeft: '4px solid #6739B7', display: 'flex', flexDirection: 'column', flex: 1, maxHeight: showPreview ? 'calc(100vh - 650px)' : 'calc(100vh - 450px)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                   <h3 style={{ ...cardTitle, color: '#d1c4e9', margin: 0 }}><Terminal size={18} /> Deployment Console</h3>
                   <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '10px', backgroundColor: streamStatus === "Connected" ? "#166534" : "#b91c1c", color: 'white', fontWeight: 'bold' }}>{streamStatus.toUpperCase()}</span>
@@ -480,7 +648,7 @@ function App() {
                 <div ref={logContainerRef} style={consoleBox}>
                     {logs.length === 0 && !loading && <div style={{color: '#4c566a'}}>Terminal ready. Click 'START ORCHESTRATION' to begin.</div>}
                     {logs.map((log, idx) => (
-                        <div key={idx} style={{ borderBottom: '1px solid #1a1a1a', padding: '2px 0', whiteSpace: 'pre-wrap', color: log.includes('TASK [') ? '#58a6ff' : log.includes('PLAY [') ? '#d29922' : '#a3be8c', fontSize: '13px' }}>{log}</div>
+                        <div key={idx} style={{ borderBottom: '1px solid #1a1a1a', padding: '2px 0', whiteSpace: 'pre-wrap', color: log.includes('TASK [') ? '#58a6ff' : log.includes('PLAY [') ? '#d29922' : log.includes('failed=') && !log.includes('failed=0') ? '#ff5f56' : '#a3be8c', fontSize: '13px' }}>{log}</div>
                     ))}
                 </div>
             </div>
