@@ -19,7 +19,7 @@ class GaleraNodeConfig(BaseModel):
 
 class ClusterDeploymentRequest(BaseModel):
     # --- Infrastructure Groups ---
-    mariadb_version: str = Field(..., pattern="^(10.5.16|10.6.21|10.11)$")
+    mariadb_version: str = Field(..., pattern="^(10.5.16|10.6.21|10.11.16)$")
     galera_nodes: List[GaleraNodeConfig] = Field(..., min_length=3, max_length=3)
 
     lvs_ips: List[str] = Field(..., min_length=2, max_length=2)

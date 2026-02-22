@@ -207,26 +207,24 @@ async def create_custom_db(data: dict):
             connect_timeout=5
         )
         with conn.cursor() as cursor:
-            # 1. CHECK: Does the database already exist?
-            cursor.execute("SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = %s", (db_name,))
-            if cursor.fetchone():
-                raise HTTPException(status_code=400, detail=f"Database '{db_name}' already exists.")
+            # 1. Checks (Keep your existing SELECT checks here)
+            
+            # 2. EXECUTION
+            # Create the Database first
+            cursor.execute(f"CREATE DATABASE IF NOT EXISTS `{db_name}`;")
 
-            # 2. CHECK: Does the user already exist?
-            cursor.execute("SELECT User FROM mysql.user WHERE User = %s", (db_user,))
-            if cursor.fetchone():
-                 raise HTTPException(status_code=400, detail=f"User '{db_user}' already exists. Choose a unique username.")
+            # THE ATOMIC COMMAND: Creates user + sets password + grants rights in 1 step
+            # This bypasses the 1133 error because there is no search for an existing row.
+            grant_query = f"GRANT ALL PRIVILEGES ON `{db_name}`.* TO '{db_user}'@'%%' IDENTIFIED BY %s;"
+            cursor.execute(grant_query, (db_pass,))
 
-            # 3. EXECUTION: If checks pass, create the assets
-            # Use backticks for DB names to prevent issues with reserved words
-            cursor.execute(f"CREATE DATABASE `{db_name}`;")
-            cursor.execute(f"CREATE USER '{db_user}'@'%' IDENTIFIED BY %s;", (db_pass,))
-            cursor.execute(f"GRANT ALL PRIVILEGES ON `{db_name}`.* TO '{db_user}'@'%';")
+            # Final sync for the cluster
             cursor.execute("FLUSH PRIVILEGES;")
+            
+            conn.commit()
 
         conn.close()
         return {"status": "success", "message": f"Successfully provisioned {db_name} for {db_user}."}
-
     except pymysql.Error as e:
         # Catch MySQL specific errors (like connection issues)
         raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")

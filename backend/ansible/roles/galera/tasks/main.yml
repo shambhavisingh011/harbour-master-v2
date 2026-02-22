@@ -58,46 +58,48 @@
   register: config_deployed
 
 # ===============================================================
-# PHASE 2: CLUSTER INITIALIZATION (The 2-Case Logic)
+# PHASE 2: CLUSTER INITIALIZATION
 # ===============================================================
-- name: "EXECUTION: Handle Cluster Start"
-  block:
-    - name: "STOP: Kill standalone or broken MariaDB processes"
-      service:
-        name: mariadb
-        state: stopped
 
-    # --- CASE A: Cluster is NOT formed (Bootstrap from Node 01) ---
-    - name: "CASE A: Bootstrap Primary Node"
-      block:
-        # NEW: Check if the file exists before editing it
-        - name: "CHECK: Check if grastate.dat exists"
-          stat:
-            path: /var/lib/mysql/grastate.dat
-          register: grastate_file
-
-        - name: "Force safe_to_bootstrap"
-          lineinfile:
-            path: /var/lib/mysql/grastate.dat
-            regexp: '^safe_to_bootstrap: 0'
-            line: 'safe_to_bootstrap: 1'
-          when: grastate_file.stat.exists # Only run if file is actually there
-
-        - name: "Initialize Galera New Cluster"
-          command: galera_new_cluster
-      when: inventory_hostname == groups['galera'][0]
-
-    # --- CASE B: Cluster is already formed or Node 01 is up (Joining) ---
-    - name: "CASE B: Join Existing Cluster"
-      service:
-        name: mariadb
-        state: started
-      when: inventory_hostname != groups['galera'][0]
-
+- name: "STOP: Ensure MariaDB is stopped before cluster logic"
+  service:
+    name: mariadb
+    state: stopped
   become: yes
-  # This whole block ONLY runs if the node is not already synced 
-  # AND no other node is already providing a healthy cluster.
-  when: not is_synced and not cluster_is_alive
+  when: not is_synced
+
+- name: "CASE A: Bootstrap Primary Node"
+  block:
+    - name: "CHECK: Check if grastate.dat exists"
+      stat:
+        path: /var/lib/mysql/grastate.dat
+      register: grastate_file
+
+    - name: "Force safe_to_bootstrap"
+      lineinfile:
+        path: /var/lib/mysql/grastate.dat
+        regexp: '^safe_to_bootstrap: 0'
+        line: 'safe_to_bootstrap: 1'
+      when: grastate_file.stat.exists
+
+    - name: "Initialize Galera New Cluster"
+      command: galera_new_cluster
+  become: yes
+  # Only bootstrap if the cluster is totally dead AND I am node 1
+  when: 
+    - not is_synced 
+    - not cluster_is_alive
+    - inventory_hostname == groups['galera'][0]
+
+- name: "CASE B: Join Existing Cluster"
+  service:
+    name: mariadb
+    state: started
+  become: yes
+  # Run this if the cluster is alive OR I am not node 1
+  when: 
+    - not is_synced
+    - (cluster_is_alive or inventory_hostname != groups['galera'][0])
 # ===============================================================
 # PHASE 3: NETWORKING & HA
 # ===============================================================
@@ -114,6 +116,20 @@
         ip link set dummy0 up
       changed_when: false
 
+    # --- FIX 1: Install the package so the service and /etc/keepalived exist ---
+    - name: "HCIP: Install Keepalived"
+      apt:
+        name: keepalived
+        state: present
+        update_cache: yes
+
+    # --- FIX 2: Explicitly ensure the directory exists before templating ---
+    - name: "HCIP: Ensure Keepalived directory exists"
+      file:
+        path: /etc/keepalived
+        state: directory
+        mode: '0755'
+
     - name: "HCIP: Deploy Keepalived Files"
       template:
         src: "{{ item.src }}"
@@ -127,6 +143,7 @@
     - name: "HCIP: Ensure Keepalived service"
       service:
         name: keepalived
+        # Using 'restarted' logic is good, but Ensure it's 'started' if it was just installed
         state: "{{ 'restarted' if ha_files.changed else 'started' }}"
         enabled: yes
   become: yes

@@ -37,7 +37,7 @@ function App() {
   const [showDbPassword, setShowDbPassword] = useState(false);
   // --- CONFIGURATION DATA ---
   const [formData, setFormData] = useState({
-    mariadb_version: "10.11",
+    mariadb_version: "10.11.16",
     node1_ip: "192.168.64.192", node1_name: "db-node-01",
     node2_ip: "192.168.64.193", node2_name: "db-node-02",
     node3_ip: "192.168.64.194", node3_name: "db-node-03",
@@ -345,7 +345,7 @@ function App() {
             <select name="mariadb_version" value={formData.mariadb_version} onChange={handleChange} style={headerSelect} disabled={loading || validating}>
                 <option value="10.5.16">MariaDB 10.5.16</option>
                 <option value="10.6.21">MariaDB 10.6.21</option>
-                <option value="10.11">MariaDB 10.11</option>
+                <option value="10.11.16">MariaDB 10.11.16</option>
             </select>
             </div>
             <button onClick={() => setIsAuthenticated(false)} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.3)', color: 'white', padding: '8px 15px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px' }}>Logout</button>
@@ -439,7 +439,7 @@ function App() {
                     <div style={{ gridColumn: 'span 2' }}><label style={miniLabel}>expire_logs_days</label><input name="expire_logs_days" value={formData.expire_logs_days} onChange={handleChange} style={inputStyle} /></div>
                 </>
                 )}
-                {(formData.mariadb_version === "10.6.21" || formData.mariadb_version === "10.11") && (
+                {(formData.mariadb_version === "10.6.21" || formData.mariadb_version === "10.11.16") && (
                 <>
                     <div>
                         <label style={miniLabel}>wsrep_mode</label>
@@ -451,7 +451,7 @@ function App() {
                     </div>
                 </>
                 )}
-                {formData.mariadb_version === "10.11" && (
+                {formData.mariadb_version === "10.11.16" && (
                 <div style={{ gridColumn: 'span 2', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed #d1c4e9' }}>
                     <div><label style={miniLabel}>wsrep_slave_threads</label><input name="wsrep_slave_threads" value={formData.wsrep_slave_threads} onChange={handleChange} style={inputStyle} /></div>
                     <div><label style={miniLabel}>innodb_undo_tablespaces</label><input name="innodb_undo_tablespaces" value={formData.innodb_undo_tablespaces} onChange={handleChange} style={inputStyle} /></div>

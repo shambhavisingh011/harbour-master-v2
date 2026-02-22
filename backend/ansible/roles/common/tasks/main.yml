@@ -11,18 +11,18 @@
 
 - name: Extract installed version string
   set_fact:
-    # Logic: Specifically look for the version number AFTER the word 'Distrib'
-    # This prevents the regex from grabbing the protocol version (15.1)
-    installed_version: "{{ mariadb_check.stdout | regex_search('Distrib ([0-9]+\\.[0-9]+)', '\\1') | first | default(mariadb_check.stdout | regex_search('([0-9]+\\.[0-9]+)\\.[0-9]+-MariaDB', '\\1') | first) }}"
+    # UPDATED REGEX: Captures X.Y and optional .Z (e.g., 10.6 or 10.6.21)
+    installed_version: "{{ mariadb_check.stdout | regex_search('Distrib ([0-9]+\\.[0-9]+(\\.[0-9]+)?)', '\\1') | first | default(mariadb_check.stdout | regex_search('([0-9]+\\.[0-9]+(\\.[0-9]+)?)-MariaDB', '\\1') | first) }}"
   when: mariadb_check.rc == 0
 
 - name: Block execution if versions mismatch
   fail:
-    msg: "Safety Stop: You requested MariaDB {{ mariadb_version }}, but version {{ installed_version }} is already installed. Downgrades/Upgrades are not allowed via this playbook."
-  when: 
+    msg: "Safety Stop: You requested MariaDB {{ mariadb_version }}, but version {{ installed_version }} is already installed. Downgrades/Upgrades are not allowed."
+  when:
     - mariadb_check.rc == 0
     - installed_version is defined
-    - installed_version != (mariadb_version | string)
+    - not (mariadb_version | string).startswith(installed_version)
+  run_once: false
 
 # ===============================================================
 # PHASE 1: REPOSITORY & DEPENDENCY SETUP
@@ -55,28 +55,80 @@
     cache_valid_time: 3600
   become: yes
 
-- name: Install dependencies
-  apt:
-    name:
-      - software-properties-common
-      - dirmngr
-      - ca-certificates
-      - curl
-    state: present
+# 1. PREPARE GPG KEYRINGS
+- name: Ensure keyrings directory exists
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
   become: yes
 
 - name: Add MariaDB GPG key
-  apt_key:
+  get_url:
     url: "https://mariadb.org/mariadb_release_signing_key.asc"
-    state: present
+    dest: /etc/apt/keyrings/mariadb.asc
+    mode: '0644'
   become: yes
 
-- name: Add MariaDB Repository for version {{ mariadb_version }}
+# 2. DYNAMIC LOGIC (The "Brain" of the playbook)
+- name: Set MariaDB variables based on version
+  set_fact:
+    # 10.5.16 is the "special child" that needs Focal
+    repo_dist: "{{ 'focal' if mariadb_version == '10.5.16' else ansible_distribution_release }}"
+    ver_suffix: "{{ 'focal' if mariadb_version == '10.5.16' else 'ubu2204' }}"
+  
+- name: Construct full version string
+  set_fact:
+    # This creates strings like 1:10.11.9+maria~ubu2204 or 1:10.5.16+maria~focal
+    full_mariadb_ver: "1:{{ mariadb_version }}+maria~{{ ver_suffix }}"
+
+# 3. ADD REPOSITORY
+- name: Add MariaDB Repository
   apt_repository:
-    repo: "deb [arch=arm64,amd64] https://archive.mariadb.org/mariadb-{{ mariadb_version }}/repo/ubuntu {{ ansible_distribution_release }} main"
+    repo: "deb [arch=arm64,amd64 signed-by=/etc/apt/keyrings/mariadb.asc] https://archive.mariadb.org/mariadb-{{ mariadb_version }}/repo/ubuntu {{ repo_dist }} main"
     state: present
+    filename: mariadb_archive
   become: yes
   register: repo_added
+
+# 4. PINNING
+- name: Pin MariaDB Archive Repository
+  copy:
+    content: |
+      Package: *
+      Pin: origin archive.mariadb.org
+      Pin-Priority: 1001
+    dest: /etc/apt/preferences.d/mariadb
+  become: yes
+
+# 5. INSTALL
+- name: Install MariaDB Packages
+  apt:
+    name:
+      - "mariadb-server={{ full_mariadb_ver }}"
+      - "mariadb-client={{ full_mariadb_ver }}"
+      - "libmariadb3={{ full_mariadb_ver }}"
+      - "mariadb-common={{ full_mariadb_ver }}"
+      - "mariadb-backup={{ full_mariadb_ver }}"
+      - python3-pymysql
+      - socat
+    state: present
+    update_cache: yes
+    allow_downgrade: yes
+  become: yes
+
+# 6. HOLD PACKAGES
+- name: Hold MariaDB packages
+  dpkg_selections:
+    name: "{{ item }}"
+    selection: hold
+  loop:
+    - mariadb-server
+    - mariadb-client
+    - libmariadb3
+    - mariadb-common
+    - mariadb-backup
+  become: yes
 
 - name: Update apt cache after adding repo
   apt:
