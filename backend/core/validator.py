@@ -120,14 +120,11 @@ class InfrastructureValidator:
             return False, "Config Error: innodb_autoinc_lock_mode must be 2."
         # 5. Version-Specific Logic
         v = request.mariadb_version
-        if v == "10.5":
-            if not request.expire_logs_days:
-                return False, "10.5 Error: expire_logs_days is required."
-        elif v in ["10.6", "10.11"]:
-            if not request.binlog_expire_logs_seconds:
-                return False, f"MariaDB {v} Error: binlog_expire_logs_seconds is required."
-            if "REQUIRED_PRIMARY_KEY" not in (request.wsrep_mode or ""):
-                return False, f"MariaDB {v} Error: wsrep_mode must include REQUIRED_PRIMARY_KEY."
+        if not request.binlog_expire_logs_seconds or request.binlog_expire_logs_seconds < 3600:
+            return False, "Config Error: binlog_expire_logs_seconds must be at least 3600 (1 hour)."
+
+        if "REQUIRED_PRIMARY_KEY" not in (request.wsrep_mode or ""):
+            return False, "Security Error: 10.6+ requires wsrep_mode='REQUIRED_PRIMARY_KEY' for stability."
         # 6. Final Server ID Integrity Check
         generated_ids = [n.server_id for n in request.galera_nodes]
         if len(generated_ids) != len(set(generated_ids)):

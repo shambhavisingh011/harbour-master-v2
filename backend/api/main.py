@@ -191,13 +191,13 @@ async def trigger_deployment(request: ClusterDeploymentRequest):
     except Exception as e:
         websocket_log_handler(f"\n System Error: {str(e)}\n")
         raise HTTPException(status_code=500, detail=f"System Error: {str(e)}")
-
 @app.post("/api/create-db")
 async def create_custom_db(data: dict):
-    # Required keys: db_name, db_user, db_password, admin_password, vip
     db_name = data.get('db_name')
     db_user = data.get('db_user')
     db_pass = data.get('db_password')
+    # Let the UI pass the TTL, or default to 30
+    ttl_days = data.get('ttl_days', 30) 
 
     try:
         conn = pymysql.connect(
@@ -207,27 +207,28 @@ async def create_custom_db(data: dict):
             connect_timeout=5
         )
         with conn.cursor() as cursor:
-            # 1. Checks (Keep your existing SELECT checks here)
-            
-            # 2. EXECUTION
-            # Create the Database first
+            # 1. Create the database
             cursor.execute(f"CREATE DATABASE IF NOT EXISTS `{db_name}`;")
 
-            # THE ATOMIC COMMAND: Creates user + sets password + grants rights in 1 step
-            # This bypasses the 1133 error because there is no search for an existing row.
-            grant_query = f"GRANT ALL PRIVILEGES ON `{db_name}`.* TO '{db_user}'@'%%' IDENTIFIED BY %s;"
+            # 2. Use the Extended Grant Query
+            # Using %s for the password and %s for the days to prevent SQL injection
+            grant_query = f"""
+                GRANT ALL PRIVILEGES ON `{db_name}`.* TO '{db_user}'@'%%' 
+                IDENTIFIED BY %s 
+                WITH MAX_QUERIES_PER_HOUR 0 
+                PASSWORD EXPIRE INTERVAL {int(ttl_days)} DAY;
+            """
             cursor.execute(grant_query, (db_pass,))
 
-            # Final sync for the cluster
+            # 3. Apply changes
             cursor.execute("FLUSH PRIVILEGES;")
-            
             conn.commit()
 
         conn.close()
-        return {"status": "success", "message": f"Successfully provisioned {db_name} for {db_user}."}
+        return {"status": "success", "message": f"User {db_user} created. Access expires in {ttl_days} days."}
+
     except pymysql.Error as e:
-        # Catch MySQL specific errors (like connection issues)
-        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")    
     except Exception as e:
         # Re-raise HTTP exceptions from our checks, catch others
         if isinstance(e, HTTPException): raise e

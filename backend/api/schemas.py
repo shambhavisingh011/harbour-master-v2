@@ -19,7 +19,7 @@ class GaleraNodeConfig(BaseModel):
 
 class ClusterDeploymentRequest(BaseModel):
     # --- Infrastructure Groups ---
-    mariadb_version: str = Field(..., pattern="^(10.5.16|10.6.21|10.11.16)$")
+    mariadb_version: str = Field(..., pattern="^(10.6.16|10.6.21|10.11.16)$")
     galera_nodes: List[GaleraNodeConfig] = Field(..., min_length=3, max_length=3)
 
     lvs_ips: List[str] = Field(..., min_length=2, max_length=2)
@@ -48,9 +48,6 @@ class ClusterDeploymentRequest(BaseModel):
     wsrep_sst_auth: str = Field(..., description="Credentials in 'user:password' format")
 
     # --- Version Specific Parameters ---
-    wsrep_strict_ddl: Optional[str] = Field(default="ON")
-    wsrep_replicate_myisam: Optional[str] = Field(default="OFF")
-    expire_logs_days: Optional[int] = Field(default=7)
     wsrep_mode: Optional[str] = Field(default="REQUIRED_PRIMARY_KEY,STRICT_REPLICATION")
     binlog_expire_logs_seconds: Optional[int] = Field(default=604800)
     innodb_buffer_pool_instances: Optional[int] = Field(default=1)

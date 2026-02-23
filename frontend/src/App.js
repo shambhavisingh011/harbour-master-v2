@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Activity, Server, Database, Loader2, CheckCircle, XCircle, Globe, Zap, Settings, Lock, Eye, EyeOff, ShieldCheck, Layers, Info, Network, Cpu, Terminal, ArrowRight, ArrowLeft, AlertTriangle, Play, FileCode, Download, User, LogIn } from 'lucide-react';
+import { HelpCircle, Activity, Server, Database, Loader2, CheckCircle, XCircle, Globe, Zap, Settings, Lock, Eye, EyeOff, ShieldCheck, Layers, Info, Network, Cpu, Terminal, ArrowRight, ArrowLeft, AlertTriangle, Play, FileCode, Download, User, LogIn } from 'lucide-react';
 
 function App() {
   // --- AUTHENTICATION STATE ---
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loginData, setLoginData] = useState({ username: '', password: '' });
   const [loginError, setLoginError] = useState('');
-
+  const [activeTooltip, setActiveTooltip] = useState(null);
   // --- UI & DEPLOYMENT STATE ---
   const [page, setPage] = useState(1); // 1: Config, 2: Deployment/Monitor
   const [loading, setLoading] = useState(false);
@@ -52,7 +52,7 @@ function App() {
     bind_address: "0.0.0.0", wsrep_sst_method: "mariabackup",
     wsrep_sst_auth: "sst_user:password", repl_user: "repl_user",
     repl_password: "ReplicaSecurePass123!",db_admin_password: "AdminSecurePass123!",
-    wsrep_strict_ddl: "ON", wsrep_replicate_myisam: "OFF", expire_logs_days: "7",
+    wsrep_strict_ddl: "ON", wsrep_replicate_myisam: "OFF",
     wsrep_mode: "REQUIRED_PRIMARY_KEY,STRICT_REPLICATION", binlog_expire_logs_seconds: "604800",
     innodb_buffer_pool_instances: "1", wsrep_slave_threads: "4",
     innodb_undo_tablespaces: "3", wsrep_gtid_domain_id: "1"
@@ -212,7 +212,6 @@ function App() {
       ...formData,
       db_admin_password: formData.db_admin_password,
       innodb_autoinc_lock_mode: parseInt(formData.innodb_autoinc_lock_mode),
-      expire_logs_days: parseInt(formData.expire_logs_days),
       binlog_expire_logs_seconds: parseInt(formData.binlog_expire_logs_seconds),
       innodb_buffer_pool_instances: parseInt(formData.innodb_buffer_pool_instances),
       wsrep_slave_threads: parseInt(formData.wsrep_slave_threads),
@@ -343,7 +342,7 @@ function App() {
             <div style={{ width: '320px' }}>
             <label style={{ fontSize: '11px', fontWeight: '700', display: 'block', marginBottom: '6px', color: '#ede7f6' }}>MARIADB ENGINE VERSION *</label>
             <select name="mariadb_version" value={formData.mariadb_version} onChange={handleChange} style={headerSelect} disabled={loading || validating}>
-                <option value="10.5.16">MariaDB 10.5.16</option>
+                <option value="10.6.16">MariaDB 10.6.16</option>
                 <option value="10.6.21">MariaDB 10.6.21</option>
                 <option value="10.11.16">MariaDB 10.11.16</option>
             </select>
@@ -417,50 +416,127 @@ function App() {
                     <button type="button" onClick={() => setShowReplPass(!showReplPass)} style={eyeBtn}>{showReplPass ? <EyeOff size={16} /> : <Eye size={16} />}</button>
                   </div>
                 </div>
-                <div style={formCard}>
-                  <h3 style={cardTitle}><Network size={18} color="#6739B7" /> Cluster Identity</h3>
-                  <RequiredLabel>wsrep_cluster_name</RequiredLabel><input name="wsrep_cluster_name" value={formData.wsrep_cluster_name} onChange={handleChange} style={inputStyle} />
-                  <RequiredLabel>wsrep_provider</RequiredLabel>
-                  <select name="wsrep_provider" value={formData.wsrep_provider} onChange={handleChange} style={inputStyle}>
-                    <option value="/usr/lib/galera/libgalera_smm.so">/usr/lib/galera/libgalera_smm.so</option>
-                    <option value="/usr/lib64/galera/libgalera_smm.so">/usr/lib64/galera/libgalera_smm.so</option>
-                  </select>
-                </div>
+	      <div style={formCard}>
+  <h3 style={cardTitle}><Network size={18} color="#6739B7" /> Cluster Identity</h3>
+
+  <div style={{ display: 'flex', alignItems: 'center' }}>
+    <RequiredLabel>wsrep_cluster_name</RequiredLabel>
+
+    {/* TOOLTIP START */}
+    <div
+      style={{ position: 'relative', display: 'inline-flex', marginLeft: '8px' }}
+      onMouseEnter={() => setActiveTooltip('clusterName')}
+      onMouseLeave={() => setActiveTooltip(null)}
+    >
+      <HelpCircle size={14} color="#999" />
+      <span style={{
+        ...tooltipText,
+        ...(activeTooltip === 'clusterName' ? tooltipVisible : {})
+      }}>
+        A unique name for your cluster. All nodes must have the exact same name to connect.
+      </span>
+    </div>
+    {/* TOOLTIP END */}
+
+  </div>
+  <input name="wsrep_cluster_name" value={formData.wsrep_cluster_name} onChange={handleChange} style={inputStyle} />
+
+  <div style={{ display: 'flex', alignItems: 'center', marginTop: '10px' }}>
+    <RequiredLabel>wsrep_provider</RequiredLabel>
+
+    {/* TOOLTIP START */}
+    <div
+      style={{ position: 'relative', display: 'inline-flex', marginLeft: '8px' }}
+      onMouseEnter={() => setActiveTooltip('provider')}
+      onMouseLeave={() => setActiveTooltip(null)}
+    >
+      <HelpCircle size={14} color="#999" />
+      <span style={{
+        ...tooltipText,
+        ...(activeTooltip === 'provider' ? tooltipVisible : {})
+      }}>
+        The path to the Galera library. <br/>
+        <b>Debian/Ubuntu:</b> /usr/lib/galera/... <br/>
+        <b>RedHat/CentOS:</b> /usr/lib64/galera/...
+      </span>
+    </div>
+    {/* TOOLTIP END */}
+
+  </div>
+  <select name="wsrep_provider" value={formData.wsrep_provider} onChange={handleChange} style={inputStyle}>
+    <option value="/usr/lib/galera/libgalera_smm.so">/usr/lib/galera/libgalera_smm.so</option>
+    <option value="/usr/lib64/galera/libgalera_smm.so">/usr/lib64/galera/libgalera_smm.so</option>
+  </select>
+</div>
             </div>
           </div>
-
           <div style={{ ...formCard, borderTop: '6px solid #6739B7' }}>
-            <h3 style={{ ...cardTitle, color: '#6739B7' }}><Layers size={18} /> Version Specific Parameters: {formData.mariadb_version}</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
-                {formData.mariadb_version === "10.5.16" && (
-                <>
-                    <div><label style={miniLabel}>wsrep_strict_ddl</label><input name="wsrep_strict_ddl" value={formData.wsrep_strict_ddl} onChange={handleChange} style={inputStyle} /></div>
-                    <div><label style={miniLabel}>wsrep_replicate_myisam</label><input name="wsrep_replicate_myisam" value={formData.wsrep_replicate_myisam} onChange={handleChange} style={inputStyle} /></div>
-                    <div style={{ gridColumn: 'span 2' }}><label style={miniLabel}>expire_logs_days</label><input name="expire_logs_days" value={formData.expire_logs_days} onChange={handleChange} style={inputStyle} /></div>
-                </>
-                )}
-                {(formData.mariadb_version === "10.6.21" || formData.mariadb_version === "10.11.16") && (
-                <>
-                    <div>
-                        <label style={miniLabel}>wsrep_mode</label>
-                        <textarea name="wsrep_mode" value={formData.wsrep_mode} onChange={handleChange} style={{ ...inputStyle, height: '110px', resize: 'none' }} />
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        <div><label style={miniLabel}>binlog_expire_logs_seconds</label><input name="binlog_expire_logs_seconds" value={formData.binlog_expire_logs_seconds} onChange={handleChange} style={inputStyle} /></div>
-                        <div><label style={miniLabel}>innodb_buffer_pool_instances</label><input name="innodb_buffer_pool_instances" value={formData.innodb_buffer_pool_instances} onChange={handleChange} style={inputStyle} /></div>
-                    </div>
-                </>
-                )}
-                {formData.mariadb_version === "10.11.16" && (
-                <div style={{ gridColumn: 'span 2', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed #d1c4e9' }}>
-                    <div><label style={miniLabel}>wsrep_slave_threads</label><input name="wsrep_slave_threads" value={formData.wsrep_slave_threads} onChange={handleChange} style={inputStyle} /></div>
-                    <div><label style={miniLabel}>innodb_undo_tablespaces</label><input name="innodb_undo_tablespaces" value={formData.innodb_undo_tablespaces} onChange={handleChange} style={inputStyle} /></div>
-                    <div><label style={miniLabel}>wsrep_gtid_domain_id</label><input name="wsrep_gtid_domain_id" value={formData.wsrep_gtid_domain_id} onChange={handleChange} style={inputStyle} /></div>
-                </div>
-                )}
-            </div>
-          </div>
+    <h3 style={{ ...cardTitle, color: '#6739B7' }}>
+        <Layers size={18} /> Version Specific Parameters: {formData.mariadb_version}
+    </h3>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
+        
+        {/* Modern Parameters Section (Always shown for 10.6 and 10.11) */}
+        <div>
+            <label style={miniLabel}>wsrep_mode</label>
+            <textarea 
+                name="wsrep_mode" 
+                value={formData.wsrep_mode} 
+                onChange={handleChange} 
+                style={{ ...inputStyle, height: '110px', resize: 'none' }} 
+                placeholder="e.g., REQUIRED_PRIMARY_KEY,STRICT_REPLICATION"
+            />
+        </div>
 
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div>
+                <label style={miniLabel}>binlog_expire_logs_seconds</label>
+                <input 
+                    name="binlog_expire_logs_seconds" 
+                    value={formData.binlog_expire_logs_seconds} 
+                    onChange={handleChange} 
+                    style={inputStyle} 
+                />
+                <span style={{fontSize: '10px', color: '#7e57c2'}}>7 days = 604800s</span>
+            </div>
+            <div>
+                <label style={miniLabel}>innodb_buffer_pool_instances</label>
+                <input 
+                    name="innodb_buffer_pool_instances" 
+                    value={formData.innodb_buffer_pool_instances} 
+                    onChange={handleChange} 
+                    style={inputStyle} 
+                />
+            </div>
+        </div>
+
+        {/* Extended Parameters (Shown only for 10.11.16) */}
+        {formData.mariadb_version === "10.11.16" && (
+            <div style={{ 
+                gridColumn: 'span 2', 
+                display: 'grid', 
+                gridTemplateColumns: '1fr 1fr 1fr', 
+                gap: '15px', 
+                marginTop: '10px', 
+                paddingTop: '10px', 
+                borderTop: '1px dashed #d1c4e9' 
+            }}>
+                <div>
+                    <label style={miniLabel}>wsrep_slave_threads</label>
+                    <input name="wsrep_slave_threads" value={formData.wsrep_slave_threads} onChange={handleChange} style={inputStyle} />
+                </div>
+                <div>
+                    <label style={miniLabel}>innodb_undo_tablespaces</label>
+                    <input name="innodb_undo_tablespaces" value={formData.innodb_undo_tablespaces} onChange={handleChange} style={inputStyle} />
+                </div>
+                <div>
+                    <label style={miniLabel}>wsrep_gtid_domain_id</label>
+                    <input name="wsrep_gtid_domain_id" value={formData.wsrep_gtid_domain_id} onChange={handleChange} style={inputStyle} />
+                </div>
+            </div>
+        )}
+    </div>
+</div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '15px' }}>
             <button onClick={handleVerifyAndProceed} disabled={validating} style={{ ...deployBtn, width: '350px', backgroundColor: validating ? '#9575cd' : '#6739B7' }}>
               {validating ? <Loader2 className="animate-spin-loop" size={20} /> : <ShieldCheck size={20} />}
@@ -808,6 +884,38 @@ function App() {
 }
 
 // STYLES
+const tooltipContainer = {
+    position: 'relative',
+    display: 'inline-flex',
+    alignItems: 'center',
+    marginLeft: '6px',
+    cursor: 'pointer',
+    verticalAlign: 'middle'
+  };
+
+  const tooltipText = {
+    visibility: 'hidden',
+    width: '240px',
+    backgroundColor: '#333',
+    color: '#fff',
+    textAlign: 'left',
+    borderRadius: '6px',
+    padding: '10px',
+    position: 'absolute',
+    zIndex: 10,
+    bottom: '125%',
+    left: '50%',
+    marginLeft: '-120px',
+    opacity: 0,
+    transition: 'opacity 0.3s',
+    fontSize: '12px',
+    lineHeight: '1.4',
+    boxShadow: '0px 4px 10px rgba(0,0,0,0.2)'
+  };
+const tooltipVisible = {
+  visibility: 'visible',
+  opacity: 1
+};
 const formCard = { background: '#ffffff', padding: '20px', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' };
 const cardTitle = { margin: '0 0 16px 0', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '10px', color: '#512da8', fontWeight: '700' };
 const inputStyle = { width: '100%', padding: '10px', borderRadius: '8px', border: '1.5px solid #ede7f6', fontSize: '13px', boxSizing: 'border-box', marginBottom: '12px' };

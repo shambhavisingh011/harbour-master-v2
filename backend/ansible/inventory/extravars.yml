@@ -4,7 +4,6 @@ binlog_expire_logs_seconds: 604800
 binlog_format: ROW
 db_admin_password: AdminSecurePass123!
 default_storage_engine: InnoDB
-expire_logs_days: 7
 galera_node_list:
 - id: 16386
   ip: 192.168.64.2
@@ -33,7 +32,7 @@ lvs_ips:
 - 192.168.64.5
 - 192.168.64.6
 lvs_vip: 192.168.64.150
-mariadb_version: 10.11.16
+mariadb_version: 10.6.16
 monitor_ip: 192.168.64.8
 repl_password: ReplicaSecurePass123!
 repl_user: repl_user
@@ -43,8 +42,6 @@ wsrep_gtid_domain_id: 1
 wsrep_mode: REQUIRED_PRIMARY_KEY,STRICT_REPLICATION
 wsrep_on: 'ON'
 wsrep_provider: /usr/lib/galera/libgalera_smm.so
-wsrep_replicate_myisam: 'OFF'
 wsrep_slave_threads: 4
 wsrep_sst_auth: sst_user:StrongPass123!
 wsrep_sst_method: mariabackup
-wsrep_strict_ddl: 'ON'

@@ -31,24 +31,6 @@
   debug:
     msg: "Starting Pre-flight configuration on Head Node"
 
-- name: Ensure LVS files directory exists
-  file:
-    path: "{{ playbook_dir }}/roles/lvs/files"
-    state: directory
-    mode: '0755'
-  delegate_to: localhost
-  run_once: true
-
-- name: Generate SSH keypair for LVS Health Checks
-  openssh_keypair:
-    path: "{{ playbook_dir }}/roles/lvs/files/id_rsa"
-    type: rsa
-    size: 4096
-    force: false
-  delegate_to: localhost
-  run_once: true
-  register: key_gen
-
 - name: Update apt cache
   apt:
     update_cache: yes
