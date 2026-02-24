@@ -32,7 +32,7 @@ lvs_ips:
 - 192.168.64.5
 - 192.168.64.6
 lvs_vip: 192.168.64.150
-mariadb_version: 10.6.16
+mariadb_version: 10.6.21
 monitor_ip: 192.168.64.8
 repl_password: ReplicaSecurePass123!
 repl_user: repl_user

@@ -191,45 +191,53 @@ async def trigger_deployment(request: ClusterDeploymentRequest):
     except Exception as e:
         websocket_log_handler(f"\n System Error: {str(e)}\n")
         raise HTTPException(status_code=500, detail=f"System Error: {str(e)}")
+
 @app.post("/api/create-db")
 async def create_custom_db(data: dict):
     db_name = data.get('db_name')
     db_user = data.get('db_user')
     db_pass = data.get('db_password')
-    # Let the UI pass the TTL, or default to 30
-    ttl_days = data.get('ttl_days', 30) 
+
+    # Cast TTL to int safely
+    try:
+        ttl_days = int(data.get('ttl_days', 30))
+    except (ValueError, TypeError):
+        ttl_days = 30
 
     try:
         conn = pymysql.connect(
             host=data['vip'],
             user='root',
             password=data['admin_password'],
-            connect_timeout=5
+            connect_timeout=5,
+            autocommit=True  # Syncs DDL changes across Galera nodes immediately
         )
+
         with conn.cursor() as cursor:
             # 1. Create the database
+            # We use backticks for DB names to handle hyphens or reserved words
             cursor.execute(f"CREATE DATABASE IF NOT EXISTS `{db_name}`;")
 
-            # 2. Use the Extended Grant Query
-            # Using %s for the password and %s for the days to prevent SQL injection
-            grant_query = f"""
-                GRANT ALL PRIVILEGES ON `{db_name}`.* TO '{db_user}'@'%%' 
-                IDENTIFIED BY %s 
-                WITH MAX_QUERIES_PER_HOUR 0 
-                PASSWORD EXPIRE INTERVAL {int(ttl_days)} DAY;
-            """
-            cursor.execute(grant_query, (db_pass,))
+            # 2. Grant Privileges
+            # We use %% to escape the SQL host wildcard so Python doesn't crash.
+            # We DO NOT put quotes around %s; PyMySQL handles that automatically.
+            grant_sql = f"GRANT ALL PRIVILEGES ON `{db_name}`.* TO %s@'%%' IDENTIFIED BY %s"
+            cursor.execute(grant_sql, (db_user, db_pass))
 
-            # 3. Apply changes
+            # 3. Set Password Expiration
+            # Again, use %% for the host part.
+            expire_sql = "ALTER USER %s@'%%' PASSWORD EXPIRE INTERVAL %s DAY"
+            cursor.execute(expire_sql, (db_user, ttl_days))
+
+            # 4. Apply changes
             cursor.execute("FLUSH PRIVILEGES;")
-            conn.commit()
 
         conn.close()
         return {"status": "success", "message": f"User {db_user} created. Access expires in {ttl_days} days."}
 
     except pymysql.Error as e:
-        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")    
+        # Provide clean feedback if it's a DB error (like wrong admin password)
+        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
     except Exception as e:
-        # Re-raise HTTP exceptions from our checks, catch others
         if isinstance(e, HTTPException): raise e
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"System Error: {str(e)}")

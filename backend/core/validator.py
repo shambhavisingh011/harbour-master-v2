@@ -24,6 +24,7 @@ class InfrastructureValidator:
         """
         resources = {
             "os_family": "unknown",
+            "os_version": "unknown",
             "cpus": 0,
             "ram_gb": 0.0,
             "disk_gb": 0.0
@@ -39,6 +40,8 @@ class InfrastructureValidator:
             os_out = stdout.read().decode().lower()
             if any(x in os_out for x in ["debian", "ubuntu"]):
                 resources["os_family"] = "debian"
+                stdin, stdout, stderr = ssh.exec_command("lsb_release -rs")
+                resources["os_version"] = stdout.read().decode().strip()
             elif any(x in os_out for x in ["rhel", "centos", "alma", "rocky"]):
                 resources["os_family"] = "redhat"
             # 2. Check CPU Cores
@@ -87,6 +90,18 @@ class InfrastructureValidator:
        # if remote["disk_gb"] < 8.0:
         #    return False, f"Resource Error: {galera_ips[0]} has only {remote['disk_gb']}GB Disk. Minimum 20GB required."
         # OS Path Check for wsrep_provider
+        db_version = request.mariadb_version # e.g., "10.6.16"
+        os_version = remote["os_version"]    # e.g., "24.04"
+
+        # Rule: 10.6 is not reliable on 24.04 due to OpenSSL 3.0 conflicts
+        if db_version.startswith("10.6") and os_version == "24.04":
+            return False, (f"Compatibility Error: MariaDB 10.6 is not supported on Ubuntu 24.04. "
+                           f"Node {galera_ips[0]} is running 24.04. Please select MariaDB 10.11.")
+
+        # Rule: 10.11 is optimized for 22.04 and 24.04
+        if db_version.startswith("10.11") and os_version == "20.04":
+            return False, (f"Compatibility Error: MariaDB 10.11 requires Ubuntu 22.04+. "
+                           f"Node {galera_ips[0]} is running an older OS ({os_version}).")
         if remote["os_family"] == "debian":
             expected_path = "/usr/lib/galera/libgalera_smm.so"
         elif remote["os_family"] == "redhat":
