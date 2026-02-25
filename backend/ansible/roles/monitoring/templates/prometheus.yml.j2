@@ -1,5 +1,6 @@
 global:
-  scrape_interval: 15s
+  scrape_interval: 5s
+  evaluation_interval: 5s  # How often to check the alert rules
 
 scrape_configs:
   - job_name: 'node_exporter'

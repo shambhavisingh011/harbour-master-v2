@@ -225,11 +225,21 @@ function App() {
       lvs_ips: [formData.lvs1_ip, formData.lvs2_ip]
     };
   };
-
   const executeDeployment = async () => {
     setLoading(true);
     setError(null);
     setLogs([]);
+    
+    // Reset progress and milestones to original state
+    setProgress(0);
+    setMilestones({
+        mariadb: "pending",
+        galera: "pending",
+        lvs: "pending",
+        async: "pending",
+        monitoring: "pending"
+    });
+
     const payload = preparePayload();
     try {
       const response = await fetch('http://192.168.64.191:8000/deploy', {
@@ -246,7 +256,6 @@ function App() {
       setLoading(false);
     }
   };
-
   const RequiredLabel = ({ children }) => (
     <label style={miniLabel}>{children} <span style={{ color: '#E91E63' }}>*</span></label>
   );

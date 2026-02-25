@@ -13,4 +13,10 @@
   systemd:
     name: prometheus-mysqld-exporter
     state: restarted
+- name: restart node exporter
+  become: true
+  systemd:
+    name: prometheus-node-exporter
+    state: restarted
+    daemon_reload: true
 

@@ -54,6 +54,15 @@
   register: exporter_flags
   when: inventory_hostname in (groups['galera'] + groups['async'] | default([]))
 
+- name: Set Node Exporter Flags
+  lineinfile:
+    path: /etc/default/prometheus-node-exporter
+    regexp: '^ARGS='
+    # ADDED --collector.network_route below
+    line: 'ARGS="--collector.netdev.address-info --collector.ipvs --collector.network_route"'
+  become: yes
+  notify: restart node exporter
+
 # 5. SERVICE MANAGEMENT
 - name: Ensure Monitoring Agents are started and enabled
   systemd:

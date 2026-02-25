@@ -3,33 +3,32 @@
   apt:
     name: [apt-transport-https, software-properties-common, wget, gpg]
     state: present
+  become: yes
+
 - name: Create directory for APT keyrings
   file:
     path: /etc/apt/keyrings
     state: directory
     mode: '0755'
+  become: yes
+
 - name: Import Grafana GPG key
   get_url:
     url: https://apt.grafana.com/gpg.key
     dest: /etc/apt/keyrings/grafana.asc
     mode: '0644'
-- name: Add Grafana official APT repository (Low Memory Version)
+  become: yes
+
+- name: Add Grafana official APT repository
   shell: |
     echo "deb [signed-by=/etc/apt/keyrings/grafana.asc] https://apt.grafana.com stable main" > /etc/apt/sources.list.d/grafana.list
   become: yes
 
-- name: Update apt cache manually
-  shell: apt-get update
-  become: yes
-  register: apt_update
-  ignore_errors: yes
-
-- name: Install Prometheus and Grafana
+- name: Update apt cache and Install Monitoring Stack
   apt:
-    name:
-      - prometheus
-      - grafana
+    name: [prometheus, grafana]
     state: present
+    update_cache: yes
   become: yes
 
 - name: Create Provisioning Directories
@@ -42,7 +41,10 @@
   loop:
     - /etc/grafana/provisioning/datasources
     - /etc/grafana/provisioning/dashboards
+    - /etc/grafana/provisioning/alerting
     - /var/lib/grafana/dashboards
+  become: yes
+
 - name: Deploy Prometheus Configuration
   template:
     src: prometheus.yml.j2
@@ -50,7 +52,64 @@
     owner: prometheus
     group: prometheus
     mode: '0644'
+  become: yes
   notify: Restart Prometheus
+
+# --- ALERTING PROVISIONING ---
+
+- name: Provision Grafana Alert Rules
+  template:
+    src: grafana_alerts.yaml.j2
+    dest: /etc/grafana/provisioning/alerting/harbor_alerts.yaml
+    owner: root
+    group: grafana
+    mode: '0640'
+  become: yes
+  notify: Restart Grafana
+
+- name: Deploy Grafana Contact Points
+  template:
+    src: grafana_contact_points.yaml.j2
+    dest: /etc/grafana/provisioning/alerting/contact_points.yaml
+    owner: root
+    group: grafana
+    mode: '0640'
+  become: yes
+  notify: Restart Grafana
+
+- name: Deploy Grafana Notification Policies
+  template:
+    src: grafana_policies.yaml.j2
+    dest: /etc/grafana/provisioning/alerting/policies.yaml
+    owner: root
+    group: grafana
+    mode: '0640'
+  become: yes
+  notify: Restart Grafana
+
+# --- SMTP AND SYSTEM CONFIG ---
+
+- name: Configure Grafana SMTP settings
+  ini_file:
+    path: /etc/grafana/grafana.ini
+    section: smtp
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    owner: root
+    group: grafana
+    mode: '0640'
+  loop:
+    - { option: 'enabled', value: 'true' }
+    - { option: 'host', value: 'smtp.gmail.com:587' }
+    - { option: 'user', value: 'shambhavi.intern@phonepe.com' }
+    - { option: 'password', value: 'iruistkvxgkxunyf' }
+    - { option: 'from_address', value: 'shambhavi.intern@phonepe.com' }
+    - { option: 'startTLS_policy', value: 'MandatoryStartTLS' }
+  become: yes
+  notify: Restart Grafana
+
+# --- DASHBOARDS AND DATASOURCES ---
+
 - name: Provision Data Source (Prometheus)
   template:
     src: datasources.yml.j2
@@ -58,45 +117,45 @@
     owner: root
     group: grafana
     mode: '0640'
+  become: yes
   notify: Restart Grafana
-- name: Provision Dashboard Provider
-  template:
-    src: dashboards_provider.yml.j2
-    dest: /etc/grafana/provisioning/dashboards/provider.yaml
-    owner: root
-    group: grafana
-    mode: '0640'
-  notify: Restart Grafana
-- name: Sync Static Dashboard JSON Files
+
+- name: Sync Dashboard JSON Files
   copy:
-    src: dashboards/  
+    src: dashboards/
     dest: /var/lib/grafana/dashboards/
     owner: grafana
     group: grafana
     mode: '0644'
+  become: yes
   notify: Restart Grafana
-- name: Render Custom Galera Dashboard Template
+- name: Provision Dashboard Provider
+  template:
+    src: dashboards_provider.yml.j2
+    dest: /etc/grafana/provisioning/dashboards/provider.yaml # This was the missing file!
+    owner: root
+    group: grafana
+    mode: '0640'
+  become: yes
+  notify: Restart Grafana
+
+- name: Render Custom Galera Dashboard
   template:
     src: galera_dashboard.json.j2
     dest: /var/lib/grafana/dashboards/galera_dashboard.json
     owner: grafana
     group: grafana
     mode: '0644'
+  become: yes
   notify: Restart Grafana
-- name: Force systemd to recognize new units
-  systemd:
-    daemon_reload: yes
+
 - name: Start and Enable Services
   systemd:
     name: "{{ item }}"
     state: started
     enabled: yes
-  loop: 
+    daemon_reload: yes
+  loop:
     - prometheus
     - grafana-server
-- name: Final Service Check and Restart
-  systemd:
-    name: prometheus
-    state: restarted
-  tags: [always]
-
+  become: yes
