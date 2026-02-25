@@ -32,6 +32,7 @@ function App() {
   const [streamStatus, setStreamStatus] = useState("Disconnected");
   const logContainerRef = useRef(null);
   const [dbForm, setDbForm] = useState({ name: '', user: '', pass: '' });
+  const [dbError, setDbError] = useState(null);
   const [dbLoading, setDbLoading] = useState(false);
   const [dbMessage, setDbMessage] = useState(null);
   const [showDbPassword, setShowDbPassword] = useState(false);
@@ -225,6 +226,45 @@ function App() {
       lvs_ips: [formData.lvs1_ip, formData.lvs2_ip]
     };
   };
+  const handleDbProvision = async () => {
+    setDbLoading(true);
+    setDbError(null);
+
+    // Prepare the payload for the backend
+    const payload = {
+        db_name: dbForm.name,
+        db_user: dbForm.user,
+        db_password: dbForm.pass,
+        role: dbForm.role,
+        ttl: 30, // You can make this a state variable later
+        vip: formData.lvs_vip, // Assuming your cluster VIP is in formData
+        admin_password: formData.db_admin_password // Assuming root pass is in formData
+    };
+
+    try {
+        const response = await fetch('http://192.168.64.191:8000/api/create-db', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            // This is where Case A and Case B are caught
+            throw new Error(data.detail || "Provisioning failed");
+        }
+
+        alert(`Success: ${data.detail}`);
+        // Optional: Clear form on success
+        setDbForm({ name: '', user: '', pass: '', role: 'Read-Only' });
+
+    } catch (err) {
+        setDbError(err.message);
+    } finally {
+        setDbLoading(false);
+    }
+};
   const executeDeployment = async () => {
     setLoading(true);
     setError(null);
@@ -658,94 +698,101 @@ function App() {
                 </div>
               </div>
             )}
-        {/* 2. PROVISION CUSTOM DATABASE (Add this here) */}
-    {progress === 100 && (
-        <div style={formCard}>
-            <h3 style={cardTitle}><Database size={18} color="#6739B7" /> Provision Custom Database</h3>
-            <p style={{ fontSize: '12px', color: '#666', marginBottom: '15px' }}>
-                Create an isolated database and user on the new cluster via LVS VIP.
-            </p>
+{/* 2. PROVISION CUSTOM DATABASE */}
+{progress === 100 && (
+    <div style={formCard}>
+        <h3 style={cardTitle}><Database size={18} color="#6739B7" /> Provision Custom Database</h3>
+        <p style={{ fontSize: '12px', color: '#666', marginBottom: '15px' }}>
+            Create an isolated database and user on the new cluster via LVS VIP.
+        </p>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                    <div>
-                        <RequiredLabel>Database Name</RequiredLabel>
-                        <input
-                            style={inputStyle}
-                            placeholder="e.g. app_prod"
-                            value={dbForm.name}
-                            onChange={(e) => setDbForm({ ...dbForm, name: e.target.value })}
-                        />
-                    </div>
-                    <div>
-                        <RequiredLabel>Username</RequiredLabel>
-                        <input
-                            style={inputStyle}
-                            placeholder="e.g. app_user"
-                            value={dbForm.user}
-                            onChange={(e) => setDbForm({ ...dbForm, user: e.target.value })}
-                        />
-                    </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                {/* Database Name with Normalization & Forbidden Check */}
+                <div>
+                    <RequiredLabel>Database Name</RequiredLabel>
+                    <input
+                        style={{
+                            ...inputStyle,
+                            borderColor: ['mysql', 'root', 'admin', 'sys', 'information_schema', 'performance_schema'].includes(dbForm.name) ? '#e53935' : '#e0e0e0'
+                        }}
+                        placeholder="e.g. app_prod"
+                        value={dbForm.name}
+                        onChange={(e) => setDbForm({ ...dbForm, name: e.target.value.toLowerCase().replace(/\s/g, '') })}
+                    />
+                    {['mysql', 'root', 'admin', 'sys', 'information_schema', 'performance_schema'].includes(dbForm.name) && (
+                        <span style={{ color: '#e53935', fontSize: '10px' }}>Reserved system name forbidden.</span>
+                    )}
                 </div>
-	        <div>
-    <RequiredLabel>Password</RequiredLabel>
-    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-        <input
-            type={showDbPassword ? "text" : "password"}
-            style={{ 
-                ...inputStyle, 
-                marginBottom: 0, 
-                paddingRight: '45px' // Space for the icon
-            }}
-            placeholder="••••••••"
-            value={dbForm.pass}
-            onChange={(e) => setDbForm({ ...dbForm, pass: e.target.value })}
-        />
-        <button
-            type="button"
-            onClick={() => setShowDbPassword(!showDbPassword)}
-            style={{
-                position: 'absolute',
-                right: '10px',
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                color: '#6739B7',
-                padding: '5px',
-                display: 'flex',
-                alignItems: 'center'
-            }}
-        >
-            {showDbPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-        </button>
-    </div>
-</div>
+
+                {/* Username with Normalization */}
+                <div>
+                    <RequiredLabel>Username</RequiredLabel>
+                    <input
+                        style={inputStyle}
+                        placeholder="e.g. app_user"
+                        value={dbForm.user}
+                        onChange={(e) => setDbForm({ ...dbForm, user: e.target.value.toLowerCase().replace(/\s/g, '') })}
+                    />
+                </div>
             </div>
 
-            <button
-                onClick={handleCreateDB}
-                disabled={dbLoading || !dbForm.name || !dbForm.user}
-                style={{ ...deployBtn, marginTop: '20px', width: '100%', backgroundColor: '#6739B7' }}
-            >
-                {dbLoading ? <Loader2 className="animate-spin-loop" size={18} /> : <Zap size={18} />}
-                PROVISION DB
-            </button>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                {/* Password Field */}
+                <div>
+                    <RequiredLabel>Password</RequiredLabel>
+                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                        <input
+                            type={showDbPassword ? "text" : "password"}
+                            style={{ ...inputStyle, marginBottom: 0, paddingRight: '45px' }}
+                            placeholder="••••••••"
+                            value={dbForm.pass}
+                            onChange={(e) => setDbForm({ ...dbForm, pass: e.target.value })}
+                        />
+                        <button
+                            type="button"
+                            onClick={() => setShowDbPassword(!showDbPassword)}
+                            style={{ position: 'absolute', right: '10px', background: 'none', border: 'none', cursor: 'pointer', color: '#6739B7' }}
+                        >
+                            {showDbPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                    </div>
+                </div>
 
-            {dbMessage && (
-                <div style={{
-                    marginTop: '15px',
-                    padding: '10px',
-                    borderRadius: '4px',
-                    backgroundColor: dbMessage.type === 'success' ? '#e8f5e9' : '#ffebee',
-                    color: dbMessage.type === 'success' ? '#2e7d32' : '#c62828',
-                    fontSize: '13px'
-                }}>
-                    {dbMessage.text}
+                {/* Role Dropdown */}
+                <div>
+                    <RequiredLabel>Privilege Role</RequiredLabel>
+                    <select
+                        style={{ ...inputStyle, backgroundColor: '#fff', cursor: 'pointer' }}
+                        value={dbForm.role}
+                        onChange={(e) => setDbForm({ ...dbForm, role: e.target.value })}
+                    >
+                        <option value="Read-Only">Read-Only (SELECT, SHOW VIEW)</option>
+                        <option value="Read-Write">Read-Write (SELECT, INSERT, UPDATE, DELETE)</option>
+                        <option value="DDL-Admin">Owner/Admin (ALL PRIVILEGES)</option>
+                    </select>
+                </div>
+            </div>
+
+            {/* SRE Conflict Detection Messaging */}
+            {/* Note: In a real app, these triggers would come from your backend check API */}
+            {dbError && (
+                <div style={{ backgroundColor: '#ffebee', padding: '10px', borderRadius: '4px', border: '1px solid #ef9a9a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <AlertTriangle size={16} color="#c62828" />
+                    <span style={{ fontSize: '12px', color: '#c62828' }}>{dbError}</span>
                 </div>
             )}
-        </div>
-    )}
 
+            <button
+                onClick={handleDbProvision}
+                disabled={loading || !dbForm.name || !dbForm.user || !dbForm.pass}
+                style={{ ...deployBtn, backgroundColor: '#6739B7', marginTop: '5px' }}
+            >
+                <ShieldCheck size={18} /> PROVISION DATABASE
+            </button>
+        </div>
+    </div>
+)}
     {/* 3. PLACEHOLDER (Existing) */}
     {!report && (
         <div style={emptyResults}>

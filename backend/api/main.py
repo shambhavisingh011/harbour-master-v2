@@ -191,53 +191,75 @@ async def trigger_deployment(request: ClusterDeploymentRequest):
     except Exception as e:
         websocket_log_handler(f"\n System Error: {str(e)}\n")
         raise HTTPException(status_code=500, detail=f"System Error: {str(e)}")
-
 @app.post("/api/create-db")
 async def create_custom_db(data: dict):
-    db_name = data.get('db_name')
-    db_user = data.get('db_user')
+    # 1. Normalize and Extract
+    db_name = data.get('db_name', '').lower().strip()
+    db_user = data.get('db_user', '').lower().strip()
     db_pass = data.get('db_password')
+    role = data.get('role', 'Read-Only')
+    ttl = data.get('ttl', 30)
+    target_vip = data.get('vip')
+    admin_pass = data.get('admin_password')
 
-    # Cast TTL to int safely
-    try:
-        ttl_days = int(data.get('ttl_days', 30))
-    except (ValueError, TypeError):
-        ttl_days = 30
+    # 2. SRE Guardrail: Forbidden Names Check
+    FORBIDDEN = ['mysql', 'root', 'admin', 'sys', 'information_schema', 'performance_schema']
+    if db_name in FORBIDDEN or db_user in FORBIDDEN:
+        raise HTTPException(status_code=403, detail="Use of system-reserved names is forbidden.")
+
+    # 3. Map Roles
+    role_map = {
+        "Read-Only": "SELECT, SHOW VIEW",
+        "Read-Write": "SELECT, INSERT, UPDATE, DELETE",
+        "DDL-Admin": "ALL PRIVILEGES"
+    }
+    privs = role_map.get(role, "SELECT")
 
     try:
         conn = pymysql.connect(
-            host=data['vip'],
-            user='root',
-            password=data['admin_password'],
-            connect_timeout=5,
-            autocommit=True  # Syncs DDL changes across Galera nodes immediately
+            host=target_vip, 
+            user='root', 
+            password=admin_pass,
+            autocommit=True 
         )
-
+        
         with conn.cursor() as cursor:
-            # 1. Create the database
-            # We use backticks for DB names to handle hyphens or reserved words
-            cursor.execute(f"CREATE DATABASE IF NOT EXISTS `{db_name}`;")
+            # 4. Conflict Detection: User Check (STILL REQUIRED)
+            # We never want to overwrite an existing user's password or grants accidentally
+            cursor.execute("SELECT User FROM mysql.user WHERE User = %s", (db_user,))
+            if cursor.fetchone():
+                raise HTTPException(status_code=400, detail="User already exists. Choose a different username.")
 
-            # 2. Grant Privileges
-            # We use %% to escape the SQL host wildcard so Python doesn't crash.
-            # We DO NOT put quotes around %s; PyMySQL handles that automatically.
-            grant_sql = f"GRANT ALL PRIVILEGES ON `{db_name}`.* TO %s@'%%' IDENTIFIED BY %s"
+            # 5. Database Presence Check (SOFT CHECK)
+            cursor.execute("SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = %s", (db_name,))
+            db_exists = cursor.fetchone()
+
+            # 6. Execution Logic
+            if not db_exists:
+                # Scenario A: Brand new database
+                cursor.execute(f"CREATE DATABASE `{db_name}`;")
+                status_msg = f"Successfully created database {db_name} and user {db_user}."
+            else:
+                # Scenario B: Existing database, new tenant
+                status_msg = f"User {db_user} successfully attached to existing database {db_name}."
+
+            # 7. Create User and Grant (Works for both scenarios)
+            grant_sql = f"GRANT {privs} ON `{db_name}`.* TO %s@'%%' IDENTIFIED BY %s"
             cursor.execute(grant_sql, (db_user, db_pass))
 
-            # 3. Set Password Expiration
-            # Again, use %% for the host part.
-            expire_sql = "ALTER USER %s@'%%' PASSWORD EXPIRE INTERVAL %s DAY"
-            cursor.execute(expire_sql, (db_user, ttl_days))
-
-            # 4. Apply changes
+            # 8. Apply TTL
+            expire_sql = f"ALTER USER %s@'%%' PASSWORD EXPIRE INTERVAL %s DAY"
+            cursor.execute(expire_sql, (db_user, ttl))
+            
             cursor.execute("FLUSH PRIVILEGES;")
 
-        conn.close()
-        return {"status": "success", "message": f"User {db_user} created. Access expires in {ttl_days} days."}
+        return {"status": "success", "detail": status_msg}
 
     except pymysql.Error as e:
-        # Provide clean feedback if it's a DB error (like wrong admin password)
-        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
+        error_msg = e.args[1] if len(e.args) > 1 else str(e)
+        raise HTTPException(status_code=500, detail=f"Database Engine Error: {error_msg}")
     except Exception as e:
         if isinstance(e, HTTPException): raise e
         raise HTTPException(status_code=500, detail=f"System Error: {str(e)}")
+    finally:
+        if 'conn' in locals(): conn.close()

@@ -2,6 +2,7 @@ import re
 import subprocess
 import paramiko
 import os
+import socket
 from typing import List, Dict, Tuple
 class InfrastructureValidator:
     def __init__(self):
@@ -15,6 +16,14 @@ class InfrastructureValidator:
         try:
             res = subprocess.run(['ping', '-c', '1', '-W', '1', str(ip)], capture_output=True)
             return res.returncode == 0
+        except Exception:
+            return False
+    def is_port_open(self, ip, port=3306) -> bool:
+        """Checks if MariaDB port is already occupied."""
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.settimeout(1)
+                return s.connect_ex((str(ip), port)) == 0
         except Exception:
             return False
     def get_remote_resources(self, ip) -> Dict:
@@ -90,6 +99,12 @@ class InfrastructureValidator:
        # if remote["disk_gb"] < 8.0:
         #    return False, f"Resource Error: {galera_ips[0]} has only {remote['disk_gb']}GB Disk. Minimum 20GB required."
         # OS Path Check for wsrep_provider
+        deployment_nodes = galera_ips + [str(request.async_ip)]
+        occupied_nodes = [ip for ip in deployment_nodes if self.is_port_open(ip)]
+
+        if occupied_nodes:
+            return False, (f"Conflict Error: MariaDB (port 3306) is already active on {occupied_nodes}. "
+                           f"The cluster cannot be formed on nodes with an existing installation.")
         db_version = request.mariadb_version # e.g., "10.6.16"
         os_version = remote["os_version"]    # e.g., "24.04"
 
