@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { HelpCircle, Activity, Server, Database, Loader2, CheckCircle, XCircle, Globe, Zap, Settings, Lock, Eye, EyeOff, ShieldCheck, Layers, Info, Network, Cpu, Terminal, ArrowRight, ArrowLeft, AlertTriangle, Play, FileCode, Download, User, LogIn } from 'lucide-react';
+import { HelpCircle, Activity, Server, Database, Loader2, ShieldAlert, CheckCircle, XCircle, Globe, Zap, Settings, Lock, Eye, EyeOff, ShieldCheck, Layers, Info, Network, Cpu, Terminal, ArrowRight, ArrowLeft, AlertTriangle, Play, FileCode, Download, User, LogIn } from 'lucide-react';
 
 function App() {
   // --- AUTHENTICATION STATE ---
@@ -7,6 +7,8 @@ function App() {
   const [loginData, setLoginData] = useState({ username: '', password: '' });
   const [loginError, setLoginError] = useState('');
   const [activeTooltip, setActiveTooltip] = useState(null);
+  const [isConflictModalOpen, setIsConflictModalOpen] = useState(false);
+  const [conflictNodes, setConflictNodes] = useState([]);
   // --- UI & DEPLOYMENT STATE ---
   const [page, setPage] = useState(1); // 1: Config, 2: Deployment/Monitor
   const [loading, setLoading] = useState(false);
@@ -36,6 +38,9 @@ function App() {
   const [dbLoading, setDbLoading] = useState(false);
   const [dbMessage, setDbMessage] = useState(null);
   const [showDbPassword, setShowDbPassword] = useState(false);
+  const [userRole, setUserRole] = useState(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+const [authErrorMessage, setAuthErrorMessage] = useState("");
   // --- CONFIGURATION DATA ---
   const [formData, setFormData] = useState({
     mariadb_version: "10.11.16",
@@ -68,13 +73,97 @@ function App() {
   const handleLoginSubmit = (e) => {
     e.preventDefault();
     if (loginData.username === 'admin' && loginData.password === 'admin') {
-      setIsAuthenticated(true);
-      setLoginError('');
-    } else {
-      setLoginError('Invalid credentials. Hint: use admin/admin');
-    }
+    setIsAuthenticated(true);
+    setUserRole('admin');
+  } else if (loginData.username === 'viewer' && loginData.password === 'viewer') {
+    setIsAuthenticated(true);
+    setUserRole('viewer');
+  } else {
+    setLoginError('Invalid credentials.');
+  }
   };
+ const parseConflictData = (errorStr) => {
+  // Regex to find content inside square brackets [IP: Status, Size: X]
+  const regex = /\[(.*?): (.*?), Size: (.*?)\]/g;
+  const matches = [];
+  let match;
 
+  while ((match = regex.exec(errorStr)) !== null) {
+    matches.push({
+      ip: match[1],
+      status: match[2],
+      size: match[3]
+    });
+  }
+  return matches;
+};
+const ConflictModal = ({ isOpen, data, onClose }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div style={modalOverlay}>
+      <div style={modalContent}>
+        <div style={{ color: '#6739B7', marginBottom: '15px' }}>
+          <AlertTriangle size={48} style={{ margin: '0 auto' }} />
+        </div>
+
+        <h3 style={{ margin: '0 0 10px 0', fontSize: '20px', color: '#512da8', fontWeight: '700' }}>
+          ⚠️ Existing Cluster Detected
+        </h3>
+
+        <p style={{ fontSize: '14px', color: '#666', marginBottom: '20px' }}>
+          The following nodes already have an active MariaDB installation:
+        </p>
+
+        <div style={reportContainer}>
+          {data.map((node, index) => (
+            <div key={index} style={healthRow}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                <span style={{ fontSize: '13px', fontWeight: 'bold' }}>{node.ip}</span>
+                <span style={{ fontSize: '11px', color: '#9575cd' }}>Cluster Size: {node.size}</span>
+              </div>
+              {/* Using your dynamic badgeStyle function here */}
+              <span style={badgeStyle(node.status)}>{node.status}</span>
+            </div>
+          ))}
+        </div>
+
+        <p style={{ fontSize: '12px', color: '#999', marginTop: '15px', fontStyle: 'italic' }}>
+          Please wipe these nodes before attempting a new deployment.
+        </p>
+
+        <button style={modalBtn} onClick={onClose}>
+          Close & Fix
+        </button>
+      </div>
+    </div>
+  );
+};
+const AuthModal = ({ isOpen, message, onClose }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div style={modalOverlay}>
+      <div style={modalContent}>
+        <div style={{ color: '#d32f2f', marginBottom: '15px' }}>
+          <ShieldAlert size={48} style={{ margin: '0 auto' }} />
+        </div>
+        <h3 style={{ margin: '0 0 10px 0', fontSize: '20px', color: '#b71c1c', fontWeight: '700' }}>
+          Access Denied
+        </h3>
+        <p style={{ fontSize: '15px', color: '#444', lineHeight: '1.6', marginBottom: '20px' }}>
+          {message || "You do not have the required permissions to perform this action."}
+        </p>
+        <div style={{ backgroundColor: '#fff5f5', padding: '12px', borderRadius: '8px', border: '1px solid #ffcdd2', fontSize: '13px', color: '#c62828', marginBottom: '20px' }}>
+          <strong>Role:</strong> Viewer (Read-Only Access)
+        </div>
+        <button style={{ ...modalBtn, backgroundColor: '#d32f2f' }} onClick={onClose}>
+          Return to Dashboard
+        </button>
+      </div>
+    </div>
+  );
+};
   // --- SSE LOG STREAMING EFFECT ---
   useEffect(() => {
     let eventSource;
@@ -149,41 +238,73 @@ function App() {
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
-
   const handleVerifyAndProceed = async () => {
     setValidating(true);
     setError(null);
+
+    // 1. Local Validation
     if (!formData.db_admin_password || formData.db_admin_password.trim() === "") {
-    setError("Database Admin Password is required to secure the cluster.");
-    setValidating(false);
-    return; // Stop the execution
-  }
+      setError("Database Admin Password is required to secure the cluster.");
+      setValidating(false);
+      return; 
+    }
+
     const payload = preparePayload();
+
     try {
       const response = await fetch('/api/validate', {
         method: 'POST',
-	      headers: { 'Content-Type': 'application/json' },
-	      body: JSON.stringify(payload)
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-role': userRole // Ensure this is 'viewer' or 'admin'
+        },
+        body: JSON.stringify(payload)
       });
+
       const data = await response.json();
+
+      // 2. Handle Errors (STOPS NAVIGATION)
       if (!response.ok) {
-        if (Array.isArray(data.detail)) {
-          const errorMsgs = data.detail.map(err => `${err.loc[err.loc.length - 1]}: ${err.msg}`).join(", ");
-          throw new Error(errorMsgs);
+        const errorMsg = data.detail || "Validation failed";
+
+        // Handle Existing Cluster (Health Modal)
+        if (typeof errorMsg === 'string' && (errorMsg.includes("EXISTS|") || errorMsg.includes("Conflict Error"))) {
+          const cleanMsg = errorMsg.replace("EXISTS|", "").replace("Conflict Error: ", "");
+          const parsedNodes = parseConflictData(cleanMsg);
+          setConflictNodes(parsedNodes);
+          setIsConflictModalOpen(true);
+          setError(null);
+        } 
+        
+        // Handle Unauthorized Viewer (Auth Modal)
+        else if (typeof errorMsg === 'string' && errorMsg.includes("AUTHORIZATION_ERROR|")) {
+          const cleanMsg = errorMsg.replace("AUTHORIZATION_ERROR|", "");
+          setAuthErrorMessage(cleanMsg); 
+          setIsAuthModalOpen(true);      // Trigger Pop-up
+          setError(null);
+        } 
+        
+        else {
+          setError(Array.isArray(data.detail) ? "Check form fields" : errorMsg);
         }
-        throw new Error(data.detail || "Validation failed.");
+        
+        setValidating(false);
+        return; // IMPORTANT: This prevents moving to Page 2
       }
+
+      // 3. SUCCESS LOGIC (Only runs for Authorized Admin)
+      // If we are here, response.ok is true
       setLogs([]);
       setReport(null);
-      setPage(2);
-      handlePreview(payload); 
+      setPage(2); // MOVE TO PAGE 2 ONLY HERE
+      handlePreview(payload);
+
     } catch (err) {
-      setError(err.message);
+      setError(`System Error: ${err.message}`);
     } finally {
       setValidating(false);
     }
   };
-
   const handlePreview = async (payload) => {
     try {
       const response = await fetch('/api/preview-config', {
@@ -935,6 +1056,16 @@ function App() {
           </div>
         </div>
       )}
+     <ConflictModal 
+        isOpen={isConflictModalOpen} 
+        data={conflictNodes} 
+        onClose={() => setIsConflictModalOpen(false)} 
+      />
+	<AuthModal
+      isOpen={isAuthModalOpen}
+      message={authErrorMessage}
+      onClose={() => setIsAuthModalOpen(false)}
+    />
     </div>
   );
 }
@@ -971,6 +1102,51 @@ const tooltipContainer = {
 const tooltipVisible = {
   visibility: 'visible',
   opacity: 1
+};
+const modalOverlay = {
+  position: 'fixed',
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  backgroundColor: 'rgba(0, 0, 0, 0.75)',
+  display: 'flex',
+  justifyContent: 'center',
+  alignItems: 'center',
+  zIndex: 2000,
+  backdropFilter: 'blur(4px)'
+};
+
+const modalContent = {
+  backgroundColor: '#ffffff',
+  padding: '30px',
+  borderRadius: '20px',
+  width: '500px',
+  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+  textAlign: 'center',
+  border: '1px solid #d1c4e9'
+};
+
+const badgeStyle = (status) => ({
+  backgroundColor: status.toLowerCase() === 'synced' ? '#dcfce7' : '#fee2e2',
+  color: status.toLowerCase() === 'synced' ? '#166534' : '#991b1b',
+  padding: '4px 10px',
+  borderRadius: '6px',
+  fontSize: '11px',
+  fontWeight: 'bold',
+  textTransform: 'uppercase'
+});
+
+const modalBtn = {
+  marginTop: '20px',
+  padding: '12px 24px',
+  backgroundColor: '#6739B7',
+  color: 'white',
+  border: 'none',
+  borderRadius: '10px',
+  fontWeight: 'bold',
+  cursor: 'pointer',
+  width: '100%'
 };
 const formCard = { background: '#ffffff', padding: '20px', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' };
 const cardTitle = { margin: '0 0 16px 0', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '10px', color: '#512da8', fontWeight: '700' };

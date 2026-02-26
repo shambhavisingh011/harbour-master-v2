@@ -1,9 +1,7 @@
-# STAGE 1: Builder
+# STAGE 1: Builder (Compiles C-extensions)
 FROM python:3.12-slim AS builder
-
 WORKDIR /app
 
-# Install GCC only in the builder stage
 RUN apt-get update && apt-get install -y \
     gcc \
     python3-dev \
@@ -12,25 +10,30 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
-# Build wheels instead of installing directly
+# We build wheels for heavy items like cryptography/paramiko here
 RUN pip wheel --no-cache-dir --wheel-dir /app/wheels -r requirements.txt
-RUN pip install ansible
-RUN ansible-galaxy collection install community.crypto
 
-# STAGE 2: Final (Tiny)
+# STAGE 2: Final (The production image)
 FROM python:3.12-slim
-
 WORKDIR /app
 
-# Install only the runtime dependency
+# 1. Install runtime OS dependencies
 RUN apt-get update && apt-get install -y \
     openssh-client \
     iputils-ping \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy the pre-built wheels from the builder stage
+# 2. Copy and install pre-built wheels from builder
 COPY --from=builder /app/wheels /wheels
-RUN pip install --no-cache /wheels/*
+RUN pip install --no-cache-dir /wheels/* && rm -rf /wheels
+
+# 3. Install Ansible & MySQL support in ONE layer to save space
+RUN pip install --no-cache-dir ansible-core pymysql && \
+    ansible-galaxy collection install \
+    community.crypto \
+    ansible.posix \
+    community.mysql \
+    community.general
 
 COPY . .
 

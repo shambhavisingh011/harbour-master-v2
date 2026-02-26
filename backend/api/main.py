@@ -12,7 +12,8 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from jinja2 import Template
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.concurrency import run_in_threadpool 
-
+from fastapi import Header
+from typing import Optional
 # --- Path Configuration ---
 API_DIR = Path(__file__).resolve().parent
 BACKEND_DIR = API_DIR.parent
@@ -111,19 +112,37 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     return JSONResponse(status_code=400, content={"detail": errors})
 
 @app.post("/validate")
-async def validate_only(request: ClusterDeploymentRequest):
+async def validate_only(
+    request: ClusterDeploymentRequest, 
+    x_user_role: Optional[str] = Header(None) # Captures 'role' from headers
+):
     """
     Dedicated validation endpoint for the 'Verify & Proceed' button.
+    Supports Role-Based Access Control (Admin/Viewer).
     """
+    
+    # 1. Prepare Server IDs
     for node in request.galera_nodes:
         node.server_id = calculate_deterministic_server_id(node.ip)
-    
-    success, val_message = verify_infrastructure(request)
-    
+
+    # 2. Extract role (Default to 'viewer' if header is missing for safety)
+    role = x_user_role.lower() if x_user_role else "viewer"
+
+    # 3. Call the updated validator with the role
+    success, val_message = verify_infrastructure(request, role)
+
+    # 4. Handle Validation/Authorization Failures
     if not success:
+        # Check if it's an Auth error or an Existence error to set status codes
+        if "AUTHORIZATION_ERROR" in val_message:
+            raise HTTPException(status_code=403, detail=val_message)
         raise HTTPException(status_code=400, detail=val_message)
-    
-    return {"status": "Validated", "message": val_message}
+
+    return {
+        "status": "Validated", 
+        "message": val_message,
+        "role_processed": role
+    }
 
 @app.post("/preview-config")
 async def preview_config(request: ClusterDeploymentRequest):

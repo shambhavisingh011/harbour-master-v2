@@ -101,7 +101,7 @@ class InfrastructureValidator:
             
         return resources
 
-    def validate_all(self, request) -> Tuple[bool, str]:
+    def validate_all(self, request, role: str) -> Tuple[bool, str]:
         """Main validation logic matching ClusterDeploymentRequest schema."""
         
         # 1. Connectivity Checks
@@ -114,10 +114,6 @@ class InfrastructureValidator:
                 return False, f"Connectivity Error: Node {ip} is unreachable (Ping failed)."
         # 2. Hardware Resource & OS Path Check
         # We check the first Galera node as a representative for the cluster hardware
-        remote = self.get_remote_resources(galera_ips[0])
-        
-        if remote["os_family"] == "unknown":
-            return False, f"SSH Error: Could not authenticate with {galera_ips[0]}. Check your SSH keys."
         # --- SAFE LIMIT VALIDATION ---
         # These match the limits we set to keep your laptop from crashing
        # if remote["cpus"] < 1:
@@ -145,8 +141,15 @@ class InfrastructureValidator:
                 health_reports.append(f"[{node_report}]")
 
             report_str = " ".join(health_reports)
-            return False, (f"Conflict Error: MariaDB active. {report_str}. "
-                           f"The Galera cluster cannot be formed on nodes with an existing installation.")
+            return False, f"EXISTS|Conflict Error: MariaDB active. {report_str}."
+
+        if role == "viewer":
+            return False, "AUTHORIZATION_ERROR|You are not authorized to create a new cluster."
+
+        remote = self.get_remote_resources(galera_ips[0])
+        if remote["os_family"] == "unknown":
+            return False, f"SSH Error: Could not authenticate with {galera_ips[0]}. Check your SSH keys."
+
         db_version = request.mariadb_version # e.g., "10.6.16"
         os_version = remote["os_version"]    # e.g., "24.04"
 
@@ -203,7 +206,7 @@ class InfrastructureValidator:
             return False, "Conflict: Auto-generated Server IDs must be unique across the cluster."
         
         return True, "All checks passed. Ready for deployment."
-def verify_infrastructure(request):
-    validator = InfrastructureValidator()
-    return validator.validate_all(request)
 
+def verify_infrastructure(request, role: str):
+    validator = InfrastructureValidator()
+    return validator.validate_all(request, role)
