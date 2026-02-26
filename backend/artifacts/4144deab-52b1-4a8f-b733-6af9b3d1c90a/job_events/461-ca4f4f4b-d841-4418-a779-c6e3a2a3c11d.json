@@ -1,1 +1,0 @@
-{"event": "verbose", "uuid": "ca4f4f4b-d841-4418-a779-c6e3a2a3c11d", "counter": 461, "stdout": "\u001b[0;35m42   shell: \"ip route add {{ hcip_value }}/32 dev {{ ansible_default_ipv4.interface }} || true\"\u001b[0m", "start_line": 447, "end_line": 448, "runner_ident": "4144deab-52b1-4a8f-b733-6af9b3d1c90a", "created": "2026-02-19T09:50:37.757870+00:00"}

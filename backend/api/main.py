@@ -4,6 +4,7 @@ import json
 import asyncio
 import re
 import pymysql
+import logging
 from pathlib import Path
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.exceptions import RequestValidationError
@@ -47,6 +48,16 @@ app = FastAPI(
     description="Enterprise MariaDB Galera & LVS Orchestrator (SSE Stream Mode)",
     version="2.0.0"
 )
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+    handlers=[
+        logging.StreamHandler(sys.stdout) # This is the "SRE Standard"
+    ]
+)
+
+logger = logging.getLogger("HarborBackend")
 
 @app.on_event("startup")
 async def startup_event():

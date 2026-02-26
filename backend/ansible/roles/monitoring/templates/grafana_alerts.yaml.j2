@@ -1,0 +1,108 @@
+apiVersion: 1
+groups:
+  - orgId: 1
+    name: HarborMasterAlerts
+    folder: Infrastructure
+    interval: 1m
+    rules:
+      # 1. GALERA CLUSTER SIZE
+      - uid: galera_shrunk
+        title: GaleraClusterSizeShrunk
+        condition: C
+        data:
+          - refId: A
+            datasourceUid: "prom_ds_phase5"
+            relativeTimeRange: { from: 300, to: 0 }
+            model: { expr: "max(mysql_global_status_wsrep_cluster_size{instance=~'db-.*'})" }
+          - refId: B
+            datasourceUid: "__expr__"
+            model: { type: "reduce", expression: "A", reducer: "last", settings: { mode: "dropNN" } }
+          - refId: C
+            datasourceUid: "__expr__"
+            model: { type: "threshold", expression: "B", conditions: [{ evaluator: { params: [3], type: "lt" }, operator: { type: "and" }, query: { params: [] }, type: "query" }] }
+        for: 1m
+        annotations: { summary: "Galera Cluster Shrunk", description: "Cluster size below 3 nodes. Quorum at risk!" }
+        labels: { severity: critical }
+
+
+      # 3. ASYNC NODE DOWN (OS Level)
+      - uid: async_node_down
+        title: AsyncNodeDown
+        condition: C
+        data:
+          - refId: A
+            datasourceUid: "prom_ds_phase5"
+            relativeTimeRange: { from: 60, to: 0 }
+            model: { expr: "up{instance=~'.*async.*'}" }
+          - refId: B
+            datasourceUid: "__expr__"
+            model: { type: "reduce", expression: "A", reducer: "last", settings: { mode: "dropNN" } }
+          - refId: C
+            datasourceUid: "__expr__"
+            model: { type: "threshold", expression: "B", conditions: [{ evaluator: { params: [0], type: "eq" }, operator: { type: "and" }, query: { params: [] }, type: "query" }] }
+        for: 1m
+        annotations: { summary: "Async Node Offline", description: "Prometheus cannot reach the async node exporter." }
+        labels: { severity: critical }
+
+      # 4. ASYNC MARIADB STOPPED
+      - uid: async_mariadb_stopped
+        title: AsyncMariaDBStopped
+        condition: C
+        data:
+          - refId: A
+            datasourceUid: "prom_ds_phase5"
+            relativeTimeRange: { from: 60, to: 0 }
+            model: { expr: "absent(mysql_version_info{instance=~'.*async.*'}) or on() vector(0)" }
+          - refId: B
+            datasourceUid: "__expr__"
+            model: { type: "reduce", expression: "A", reducer: "last", settings: { mode: "dropNN" } }
+          - refId: C
+            datasourceUid: "__expr__"
+            model: { type: "threshold", expression: "B", conditions: [{ evaluator: { params: [1], type: "eq" }, operator: { type: "and" }, query: { params: [] }, type: "query" }] }
+        for: 30s
+        annotations: { summary: "Async MariaDB Stopped", description: "MariaDB process is down on the async node." }
+        labels: { severity: critical }
+
+      # 7. HCIP (WRITER) SHIFT ALERT
+      - uid: hcip_writer_shift
+        title: GaleraWriterNodeShifted
+        condition: C
+        data:
+          - refId: A
+            datasourceUid: "prom_ds_phase5"
+            relativeTimeRange: { from: 300, to: 0 }
+            # Track changes to the SUM of the IP across all nodes. 
+            # If it moves from db-01 to db-02, the 'instance' label changes, 
+            # which Prometheus sees as a change in the result set.
+            model: { expr: "changes((sum by (instance) (node_network_address_info{address='10.0.0.100'}))[5m:])" }
+          - refId: B
+            datasourceUid: "__expr__"
+            model: { type: "reduce", expression: "A", reducer: "sum", settings: { mode: "dropNN" } }
+          - refId: C
+            datasourceUid: "__expr__"
+            model: { type: "threshold", expression: "B", conditions: [{ evaluator: { params: [0], type: "gt" }, operator: { type: "and" }, query: { params: [] }, type: "query" }] }
+        for: 0s
+        annotations:
+          summary: "HCIP Writer Shift Detected"
+          description: "The Writing HCIP 10.0.0.100 moved or vanished from the active node!"
+        labels: { severity: warning }
+
+      - uid: hcip_offline
+        title: GaleraHCIP_Offline
+        condition: C
+        data:
+          - refId: A
+            datasourceUid: "prom_ds_phase5"
+            relativeTimeRange: { from: 60, to: 0 }
+            # Filter specifically for LVS nodes so Galera's local VIP doesn't trick us
+            model: { expr: "sum(node_network_address_info{address='{{ lvs_vip }}', instance=~'lvs-.*'}) or vector(0)" }
+          - refId: B
+            datasourceUid: "__expr__"
+            model: { type: "reduce", expression: "A", reducer: "last", settings: { mode: "dropNN" } }
+          - refId: C
+            datasourceUid: "__expr__"
+            model: { type: "threshold", expression: "B", conditions: [{ evaluator: { params: [1], type: "lt" }, operator: { type: "and" }, query: { params: [] }, type: "query" }] }
+        for: 15s
+        annotations: { summary: "VIP Offline", description: "LVS VIP is missing from all Load Balancers!" }
+        labels: { severity: critical }
+

@@ -1,1 +1,0 @@
-{"event": "verbose", "uuid": "6b68f97f-da89-4942-8953-54322e047b24", "counter": 473, "stdout": "\u001b[0;35m78     # Robust IP detection: Try SSH_CLIENT, then Control Node IP, then fallback to Head Node's specific subnet IP\u001b[0m", "start_line": 461, "end_line": 462, "runner_ident": "2a0b0c6e-708f-470c-8439-315d9589491e", "created": "2026-02-17T10:00:46.589515+00:00"}

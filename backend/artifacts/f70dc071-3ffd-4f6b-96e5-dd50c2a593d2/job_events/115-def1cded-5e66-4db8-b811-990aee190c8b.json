@@ -1,1 +1,0 @@
-{"event": "verbose", "uuid": "def1cded-5e66-4db8-b811-990aee190c8b", "counter": 115, "stdout": "\u001b[0;35mUse `ansible_facts[\"fact_name\"]` (no `ansible_` prefix) instead.\u001b[0m", "start_line": 114, "end_line": 115, "runner_ident": "f70dc071-3ffd-4f6b-96e5-dd50c2a593d2", "created": "2026-02-20T08:14:22.779452+00:00"}

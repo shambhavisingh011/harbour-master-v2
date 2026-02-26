@@ -1,1 +1,0 @@
-{"event": "verbose", "uuid": "03d972c3-f2b3-402f-a536-1d6d71a8ae6d", "counter": 233, "stdout": "\u001b[0;35mOrigin: /home/ubuntu/harbour-master/backend/ansible/roles/galera/templates/db_keepalived.conf.j2\u001b[0m", "start_line": 211, "end_line": 212, "runner_ident": "c8176ce1-08d0-4459-b92d-2fe916558c99", "created": "2026-02-20T10:37:26.255151+00:00"}

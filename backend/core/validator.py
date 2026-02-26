@@ -26,6 +26,37 @@ class InfrastructureValidator:
                 return s.connect_ex((str(ip), port)) == 0
         except Exception:
             return False
+    # Line 72: Ensure the function definition ends with a colon
+    def _get_cluster_health(self, ip: str, password: str) -> Dict:
+        """Queries an existing MariaDB instance ONLY for Galera health metrics."""
+        health = {"status": "Disconnected", "size": "0", "ready": "OFF"}
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+        try:
+            ssh.connect(str(ip), username="ubuntu", key_filename=self.key_path, timeout=3)
+
+            # Strictly Galera status checks
+            cmd = (
+                f"mariadb -u root -p'{password}' -e \"SHOW STATUS LIKE 'wsrep_local_state_comment'; "
+                "SHOW STATUS LIKE 'wsrep_cluster_size'; "
+                "SHOW STATUS LIKE 'wsrep_ready';\""
+            )
+
+            stdin, stdout, stderr = ssh.exec_command(cmd)
+            output = stdout.read().decode()
+
+            if "wsrep_local_state_comment" in output:
+                for line in output.splitlines():
+                    if "wsrep_local_state_comment" in line: health["status"] = line.split()[-1]
+                    if "wsrep_cluster_size" in line: health["size"] = line.split()[-1]
+                    if "wsrep_ready" in line: health["ready"] = line.split()[-1]
+
+            ssh.close()
+        except Exception:
+            health["status"] = "Unknown"
+
+        return health
     def get_remote_resources(self, ip) -> Dict:
         """
         Connects via SSH to fetch actual CPU, RAM, and Disk from the target VM.
@@ -70,7 +101,6 @@ class InfrastructureValidator:
             
         return resources
 
-
     def validate_all(self, request) -> Tuple[bool, str]:
         """Main validation logic matching ClusterDeploymentRequest schema."""
         
@@ -99,12 +129,24 @@ class InfrastructureValidator:
        # if remote["disk_gb"] < 8.0:
         #    return False, f"Resource Error: {galera_ips[0]} has only {remote['disk_gb']}GB Disk. Minimum 20GB required."
         # OS Path Check for wsrep_provider
-        deployment_nodes = galera_ips + [str(request.async_ip)]
+        deployment_nodes = galera_ips 
+
+        # Check if port 3306 is open on any of these nodes
         occupied_nodes = [ip for ip in deployment_nodes if self.is_port_open(ip)]
 
         if occupied_nodes:
-            return False, (f"Conflict Error: MariaDB (port 3306) is already active on {occupied_nodes}. "
-                           f"The cluster cannot be formed on nodes with an existing installation.")
+            health_reports = []
+            for ip in occupied_nodes:
+                h = self._get_cluster_health(ip, request.db_admin_password)
+
+                # Since we are only scanning Galera nodes now,
+                # we can simplify this to just the Galera status
+                node_report = f"{ip} (Galera): {h['status']}, Size: {h['size']}"
+                health_reports.append(f"[{node_report}]")
+
+            report_str = " ".join(health_reports)
+            return False, (f"Conflict Error: MariaDB active. {report_str}. "
+                           f"The Galera cluster cannot be formed on nodes with an existing installation.")
         db_version = request.mariadb_version # e.g., "10.6.16"
         os_version = remote["os_version"]    # e.g., "24.04"
 

@@ -1,1 +1,0 @@
-{"event": "verbose", "uuid": "1c6fa15e-4e05-4cc4-97a2-5be3a2b4060e", "counter": 413, "stdout": "\u001b[0;35m23 - name: Add route to HCIP subnet for health checks\u001b[0m", "start_line": 403, "end_line": 404, "runner_ident": "63eaa455-bbd0-4a30-a466-07b2ec4cdd69", "created": "2026-02-16T16:18:49.503281+00:00"}

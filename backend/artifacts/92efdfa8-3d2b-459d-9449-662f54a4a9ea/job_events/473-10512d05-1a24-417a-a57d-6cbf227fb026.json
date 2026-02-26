@@ -1,1 +1,0 @@
-{"event": "verbose", "uuid": "10512d05-1a24-417a-a57d-6cbf227fb026", "counter": 473, "stdout": "\u001b[0;35m78     # Fix: Extract IP from SSH_CLIENT or fallback to the host connecting to the target\u001b[0m", "start_line": 451, "end_line": 452, "runner_ident": "92efdfa8-3d2b-459d-9449-662f54a4a9ea", "created": "2026-02-16T10:42:39.178649+00:00"}

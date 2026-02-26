@@ -82,7 +82,7 @@ function App() {
       const setupSSE = () => {
 	if (isAuthenticated && page === 2) {
         console.log("Initiating SSE Connection...");
-        eventSource = new EventSource('http://192.168.64.191:8000/api/logs/stream');
+        eventSource = new EventSource('/api/logs/stream');
         eventSource.onopen = () => {
           setStreamStatus("Connected");
           console.log("SSE Connected Successfully");
@@ -160,7 +160,7 @@ function App() {
   }
     const payload = preparePayload();
     try {
-      const response = await fetch('http://192.168.64.191:8000/validate', {
+      const response = await fetch('/api/validate', {
         method: 'POST',
 	      headers: { 'Content-Type': 'application/json' },
 	      body: JSON.stringify(payload)
@@ -186,7 +186,7 @@ function App() {
 
   const handlePreview = async (payload) => {
     try {
-      const response = await fetch('http://192.168.64.191:8000/preview-config', {
+      const response = await fetch('/api/preview-config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -242,7 +242,7 @@ function App() {
     };
 
     try {
-        const response = await fetch('http://192.168.64.191:8000/api/create-db', {
+        const response = await fetch('/api/api/create-db', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -282,7 +282,7 @@ function App() {
 
     const payload = preparePayload();
     try {
-      const response = await fetch('http://192.168.64.191:8000/deploy', {
+      const response = await fetch('/api/deploy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -309,7 +309,7 @@ function App() {
     setDbLoading(true);
     setDbMessage(null);
     try {
-        const response = await fetch('http://192.168.64.191:8000/api/create-db', {
+        const response = await fetch('/api/api/create-db', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

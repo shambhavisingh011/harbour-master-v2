@@ -1,1 +1,0 @@
-{"event": "verbose", "uuid": "523569b4-a2d0-45a4-9b1d-46e99ca1d7c6", "counter": 113, "stdout": "\u001b[1;35m[WARNING]: Deprecation warnings can be disabled by setting `deprecation_warnings=False` in ansible.cfg.\u001b[0m", "start_line": 100, "end_line": 101, "runner_ident": "80394045-8ea3-4c98-8b42-a157a77f2149", "created": "2026-02-20T08:35:33.171492+00:00"}

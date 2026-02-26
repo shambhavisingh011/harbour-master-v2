@@ -1,8 +1,0 @@
-[0;31m[ERROR]: YAML parsing failed: While parsing a block mapping did not find expected key.[0m
-[0;31mOrigin: /home/ubuntu/harbour-master/backend/ansible/roles/galera/tasks/main.yml:87:24[0m
-[0;31m[0m
-[0;31m85[0m
-[0;31m86 # 7. AUTOMATED HEALTH CHECK & SELF-HEALING[0m
-[0;31m87 - name: [Self-Healing] Check if Node is stuck in Initialized state[0m
-[0;31m                          ^ column 24[0m
-[0;31m[0m

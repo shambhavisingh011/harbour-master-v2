@@ -1,0 +1,16 @@
+# Ignore local environments
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# Ignore frontend heavyweights
+node_modules/
+build/
+dist/
+.npm/
+
+# Ignore local database or log files
+*.log
+.git/
+.ssh/

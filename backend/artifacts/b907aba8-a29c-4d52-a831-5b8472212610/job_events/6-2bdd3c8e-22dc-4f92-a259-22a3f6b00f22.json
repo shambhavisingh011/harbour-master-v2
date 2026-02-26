@@ -1,1 +1,0 @@
-{"event": "verbose", "uuid": "2bdd3c8e-22dc-4f92-a259-22a3f6b00f22", "counter": 6, "stdout": "\u001b[0;31m128   register: ha_config\u001b[0m", "start_line": 5, "end_line": 6, "runner_ident": "b907aba8-a29c-4d52-a831-5b8472212610", "created": "2026-02-20T10:26:02.436735+00:00"}

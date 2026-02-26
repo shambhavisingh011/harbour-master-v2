@@ -1,0 +1,11 @@
+apiVersion: 1
+contactPoints:
+  - orgId: 1
+    name: Email_Admin
+    receivers:
+      - uid: email_receiver_1
+        type: email
+        disableResolveMessage: false  # ADD THIS LINE
+        settings:
+          addresses: "shambhavi.intern@phonepe.com"
+          singleEmail: true

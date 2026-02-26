@@ -1,1 +1,0 @@
-{"event": "verbose", "uuid": "bda3a7d1-89bd-407e-92f2-5c8b5a3bac35", "counter": 2, "stdout": "\u001b[0;31mOrigin: /home/ubuntu/harbour-master/backend/ansible/roles/async_replica/tasks/main.yml:119:56\u001b[0m", "start_line": 1, "end_line": 2, "runner_ident": "cdddf2af-a534-4023-8b0d-ffe95309d038", "created": "2026-02-14T17:06:01.803167+00:00"}

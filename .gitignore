@@ -17,9 +17,12 @@ ansible.log
 .ansible_cache/
 
 # Sensitive Data (Encrypted files are okay, but plain text secrets are not)
+id_ansible*
 *.key
 *.pem
 .env
 
 # OS specific
 .DS_Store
+# Docker
+.docker_temp/

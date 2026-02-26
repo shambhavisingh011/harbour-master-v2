@@ -1,1 +1,0 @@
-{"event": "verbose", "uuid": "201005d5-5226-44cd-84c9-ee7e5cc9e829", "counter": 496, "stdout": "\u001b[0;35m41 - name: Ensure route for HCIP exists (LVS-DR routing)\u001b[0m", "start_line": 463, "end_line": 464, "runner_ident": "18799c65-e15c-484e-b6c4-87bf568eb516", "created": "2026-02-18T18:29:46.171335+00:00"}
