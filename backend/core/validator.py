@@ -103,7 +103,8 @@ class InfrastructureValidator:
 
     def validate_all(self, request, role: str) -> Tuple[bool, str]:
         """Main validation logic matching ClusterDeploymentRequest schema."""
-        
+        if role == "viewer":
+            return False, "AUTHORIZATION_ERROR|You are not authorized to create a new cluster."
         # 1. Connectivity Checks
         galera_ips = [str(n.ip) for n in request.galera_nodes]
         lvs_ips = [str(ip) for ip in request.lvs_ips]
@@ -142,9 +143,6 @@ class InfrastructureValidator:
 
             report_str = " ".join(health_reports)
             return False, f"EXISTS|Conflict Error: MariaDB active. {report_str}."
-
-        if role == "viewer":
-            return False, "AUTHORIZATION_ERROR|You are not authorized to create a new cluster."
 
         remote = self.get_remote_resources(galera_ips[0])
         if remote["os_family"] == "unknown":

@@ -405,12 +405,19 @@ const AuthModal = ({ isOpen, message, onClose }) => {
     try {
       const response = await fetch('/api/deploy', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-user-role': userRole },
         body: JSON.stringify(payload)
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.detail || "Deployment failed");
-      setReport(data);
+      if (!response.ok) {
+        if (typeof data.detail === 'string' && data.detail.includes("AUTHORIZATION_ERROR")) {
+          setAuthErrorMessage(data.detail.replace("AUTHORIZATION_ERROR|", ""));
+          setIsAuthModalOpen(true);
+          return; // Stop the function here
+        }
+        throw new Error(data.detail || "Deployment failed");
+      }
+	    setReport(data);
     } catch (err) {
       setError(err.message);
     } finally {

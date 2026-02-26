@@ -178,7 +178,7 @@ async def preview_config(request: ClusterDeploymentRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/deploy")
-async def trigger_deployment(request: ClusterDeploymentRequest):
+async def trigger_deployment(request: ClusterDeploymentRequest,x_user_role: Optional[str] = Header(None)):
     # Clear logs for a clean run
     while not log_queue.empty():
         log_queue.get_nowait()
@@ -186,8 +186,12 @@ async def trigger_deployment(request: ClusterDeploymentRequest):
     for node in request.galera_nodes:
         node.server_id = calculate_deterministic_server_id(str(node.ip))
         
-    success, val_message = verify_infrastructure(request)
+    role = x_user_role.lower().strip() if x_user_role else "viewer"
+    success, val_message = verify_infrastructure(request,role)
     if not success:
+        # Check for Auth error here too as a safety net
+        if "AUTHORIZATION_ERROR" in val_message:
+            raise HTTPException(status_code=403, detail=val_message)
         raise HTTPException(status_code=400, detail=val_message)
         
     try:
