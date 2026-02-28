@@ -106,7 +106,9 @@
     - { option: 'from_address', value: 'shambhavi.intern@phonepe.com' }
     - { option: 'startTLS_policy', value: 'MandatoryStartTLS' }
   become: yes
+  no_log: true
   notify: Restart Grafana
+
 
 # --- DASHBOARDS AND DATASOURCES ---
 

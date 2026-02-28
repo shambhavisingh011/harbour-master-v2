@@ -3,13 +3,15 @@ policies:
   - orgId: 1
     receiver: Email_Admin
     group_by: ['alertname', 'severity']
-    group_wait: 30s
-    group_interval: 5m
-    repeat_interval: 4h
+    group_wait: 5s
+    group_interval: 10s
+    repeat_interval: 1h
     # The root policy above MUST NOT have matchers.
     # We define the specific rules in the 'routes' list below.
     routes:
       - receiver: Email_Admin
+        group_wait: 5s
+        group_interval: 10s
         matchers:
           - "severity =~ critical|warning"
         continue: true

@@ -9,6 +9,7 @@ function App() {
   const [activeTooltip, setActiveTooltip] = useState(null);
   const [isConflictModalOpen, setIsConflictModalOpen] = useState(false);
   const [conflictNodes, setConflictNodes] = useState([]);
+
   // --- UI & DEPLOYMENT STATE ---
   const [page, setPage] = useState(1); // 1: Config, 2: Deployment/Monitor
   const [loading, setLoading] = useState(false);
@@ -33,7 +34,7 @@ function App() {
   const [logs, setLogs] = useState([]);
   const [streamStatus, setStreamStatus] = useState("Disconnected");
   const logContainerRef = useRef(null);
-  const [dbForm, setDbForm] = useState({ name: '', user: '', pass: '' });
+  const [dbForm, setDbForm] = useState({ name: '', user: '', pass: '',ttl:30 });
   const [dbError, setDbError] = useState(null);
   const [dbLoading, setDbLoading] = useState(false);
   const [dbMessage, setDbMessage] = useState(null);
@@ -285,7 +286,14 @@ const AuthModal = ({ isOpen, message, onClose }) => {
         } 
         
         else {
-          setError(Array.isArray(data.detail) ? "Check form fields" : errorMsg);
+          if (Array.isArray(data.detail)) {
+            // If it's a FastAPI schema error, show the first specific error
+            const firstError = data.detail[0];
+            setError(`Field Error: ${firstError.loc[1]} - ${firstError.msg}`);
+          } else {
+            // If it's a custom error message from validator.py, show it directly
+            setError(errorMsg);
+          }
         }
         
         setValidating(false);
@@ -357,7 +365,7 @@ const AuthModal = ({ isOpen, message, onClose }) => {
         db_user: dbForm.user,
         db_password: dbForm.pass,
         role: dbForm.role,
-        ttl: 30, // You can make this a state variable later
+        ttl: parseInt(dbForm.ttl) || 30,
         vip: formData.lvs_vip, // Assuming your cluster VIP is in formData
         admin_password: formData.db_admin_password // Assuming root pass is in formData
     };
@@ -430,7 +438,7 @@ const AuthModal = ({ isOpen, message, onClose }) => {
 
   const getGrafanaURL = () => `http://${formData.monitor_ip}:3000/dashboards`;
   const handleCreateDB = async () => {
-    if (!dbForm.name || !dbForm.user || !dbForm.pass) {
+    if (!dbForm.name || !dbForm.user || !dbForm.pass|| !dbForm.ttl) {
         setDbMessage({ type: 'error', text: "All fields are required!" });
         return;
     }
@@ -444,6 +452,7 @@ const AuthModal = ({ isOpen, message, onClose }) => {
                 db_name: dbForm.name,
                 db_user: dbForm.user,
                 db_password: dbForm.pass,
+		ttl: parseInt(dbForm.ttl),
                 admin_password: formData.db_admin_password, // From Page 1
                 vip: formData.lvs_vip // From Page 1
             })
@@ -451,7 +460,7 @@ const AuthModal = ({ isOpen, message, onClose }) => {
         const data = await response.json();
         if (response.ok) {
             setDbMessage({ type: 'success', text: data.message });
-            setDbForm({ name: '', user: '', pass: '' }); // Reset
+            setDbForm({ name: '', user: '', pass: '',ttl: 30 }); // Reset
         } else {
             throw new Error(data.detail);
         }
@@ -901,7 +910,21 @@ const AuthModal = ({ isOpen, message, onClose }) => {
                     </select>
                 </div>
             </div>
-
+            <div>
+        <RequiredLabel>Password TTL (Days)</RequiredLabel>
+        <input
+            type="number"
+            style={inputStyle}
+            placeholder="e.g. 30"
+            min="1"
+            max="365"
+            value={dbForm.ttl}
+            onChange={(e) => setDbForm({ ...dbForm, ttl: e.target.value })}
+        />
+        <p style={{ fontSize: '10px', color: '#666', marginTop: '2px' }}>
+            User password expires after {dbForm.ttl || 30} days.
+        </p>
+    </div>
             {/* SRE Conflict Detection Messaging */}
             {/* Note: In a real app, these triggers would come from your backend check API */}
             {dbError && (

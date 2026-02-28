@@ -103,20 +103,28 @@
 # ===============================================================
 # PHASE 3: NETWORKING & HA
 # ===============================================================
-
 - name: "LVS-DR & HCIP Networking"
   block:
-    - name: "LVS-DR: Loopback VIP"
-      shell: "ip addr add {{ lvs_vip }}/32 dev lo || true"
-      changed_when: false
+    - name: "LVS-DR: Loopback VIP & ARP Suppression"
+      shell: |
+        # 1. Assign VIP to Loopback
+        ip addr add {{ lvs_vip }}/32 dev lo || true
 
+        # 2. Apply ARP Suppression (The "Muzzle")
+        # Tells the kernel not to announce the VIP to the network on any interface
+        sysctl -w net.ipv4.conf.all.arp_ignore=1
+        sysctl -w net.ipv4.conf.all.arp_announce=2
+        
+        # Specifically protect the loopback interface
+        sysctl -w net.ipv4.conf.lo.arp_ignore=1
+        sysctl -w net.ipv4.conf.lo.arp_announce=2
+      changed_when: false
+     
     - name: "HCIP: Interface dummy0 Setup"
       shell: |
         modprobe dummy && ip link add dummy0 type dummy || true
         ip link set dummy0 up
       changed_when: false
-
-    # --- FIX 1: Install the package so the service and /etc/keepalived exist ---
     - name: "HCIP: Install Keepalived"
       apt:
         name: keepalived
@@ -148,7 +156,6 @@
         enabled: yes
   become: yes
   when: inventory_hostname in groups['galera'][:2]
-
 # ===============================================================
 # PHASE 4: FINAL VALIDATION & USERS
 # ===============================================================

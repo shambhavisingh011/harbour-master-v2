@@ -17,11 +17,10 @@
   register: galera_health_results
   ignore_errors: yes
   changed_when: false
-
-- name: Set Active Galera Master Fact
+- name: Set Active Galera Master Fact (Force db-03)
   set_fact:
-    # This filter finds the first node that returned 'Synced' in the loop above
-    active_galera_master: "{{ (galera_health_results.results | selectattr('stdout', 'defined') | selectattr('stdout', 'search', 'Synced') | first).item }}"
+    # This directly picks the 3rd node in the 'galera' inventory group
+    active_galera_master: "{{ groups['galera'][2] }}"
   run_once: true
 
 - name: Check current Replication Status on Async Node

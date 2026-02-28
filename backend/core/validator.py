@@ -103,8 +103,6 @@ class InfrastructureValidator:
 
     def validate_all(self, request, role: str) -> Tuple[bool, str]:
         """Main validation logic matching ClusterDeploymentRequest schema."""
-        if role == "viewer":
-            return False, "AUTHORIZATION_ERROR|You are not authorized to create a new cluster."
         # 1. Connectivity Checks
         galera_ips = [str(n.ip) for n in request.galera_nodes]
         lvs_ips = [str(ip) for ip in request.lvs_ips]
@@ -126,28 +124,31 @@ class InfrastructureValidator:
        # if remote["disk_gb"] < 8.0:
         #    return False, f"Resource Error: {galera_ips[0]} has only {remote['disk_gb']}GB Disk. Minimum 20GB required."
         # OS Path Check for wsrep_provider
-        deployment_nodes = galera_ips 
+        deployment_nodes = galera_ips
 
         # Check if port 3306 is open on any of these nodes
         occupied_nodes = [ip for ip in deployment_nodes if self.is_port_open(ip)]
 
         if occupied_nodes:
+            # We no longer bypass for 'admin'. Everyone sees the health report if nodes are occupied.
             health_reports = []
             for ip in occupied_nodes:
                 h = self._get_cluster_health(ip, request.db_admin_password)
-
-                # Since we are only scanning Galera nodes now,
-                # we can simplify this to just the Galera status
                 node_report = f"{ip} (Galera): {h['status']}, Size: {h['size']}"
                 health_reports.append(f"[{node_report}]")
 
             report_str = " ".join(health_reports)
+            
+            # This will now block Admins as well if MariaDB is already running
             return False, f"EXISTS|Conflict Error: MariaDB active. {report_str}."
 
+        # Authorization check for viewers happens AFTER the conflict check
+        if role == "viewer":
+            return False, "AUTHORIZATION_ERROR|You are not authorized to create a new cluster."
+            
         remote = self.get_remote_resources(galera_ips[0])
         if remote["os_family"] == "unknown":
             return False, f"SSH Error: Could not authenticate with {galera_ips[0]}. Check your SSH keys."
-
         db_version = request.mariadb_version # e.g., "10.6.16"
         os_version = remote["os_version"]    # e.g., "24.04"
 

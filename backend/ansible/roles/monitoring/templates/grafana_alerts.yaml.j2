@@ -3,11 +3,11 @@ groups:
   - orgId: 1
     name: HarborMasterAlerts
     folder: Infrastructure
-    interval: 1m
+    interval: 10s
     rules:
       # 1. GALERA CLUSTER SIZE
       - uid: galera_shrunk
-        title: GaleraClusterSizeShrunk
+        title: Galera Cluster Size Shrunk
         condition: C
         data:
           - refId: A
@@ -20,14 +20,14 @@ groups:
           - refId: C
             datasourceUid: "__expr__"
             model: { type: "threshold", expression: "B", conditions: [{ evaluator: { params: [3], type: "lt" }, operator: { type: "and" }, query: { params: [] }, type: "query" }] }
-        for: 1m
+        for: 0s
         annotations: { summary: "Galera Cluster Shrunk", description: "Cluster size below 3 nodes. Quorum at risk!" }
         labels: { severity: critical }
 
 
       # 3. ASYNC NODE DOWN (OS Level)
       - uid: async_node_down
-        title: AsyncNodeDown
+        title: Async Node Down
         condition: C
         data:
           - refId: A
@@ -40,13 +40,13 @@ groups:
           - refId: C
             datasourceUid: "__expr__"
             model: { type: "threshold", expression: "B", conditions: [{ evaluator: { params: [0], type: "eq" }, operator: { type: "and" }, query: { params: [] }, type: "query" }] }
-        for: 1m
+        for: 0s
         annotations: { summary: "Async Node Offline", description: "Prometheus cannot reach the async node exporter." }
         labels: { severity: critical }
 
       # 4. ASYNC MARIADB STOPPED
       - uid: async_mariadb_stopped
-        title: AsyncMariaDBStopped
+        title: Async MariaDB Stopped
         condition: C
         data:
           - refId: A
@@ -59,36 +59,32 @@ groups:
           - refId: C
             datasourceUid: "__expr__"
             model: { type: "threshold", expression: "B", conditions: [{ evaluator: { params: [1], type: "eq" }, operator: { type: "and" }, query: { params: [] }, type: "query" }] }
-        for: 30s
+        for: 0s
         annotations: { summary: "Async MariaDB Stopped", description: "MariaDB process is down on the async node." }
         labels: { severity: critical }
 
-      # 7. HCIP (WRITER) SHIFT ALERT
-      - uid: hcip_writer_shift
-        title: GaleraWriterNodeShifted
+ 
+      - uid: hcip_offline
+        title: HCIP_Offline
         condition: C
         data:
           - refId: A
             datasourceUid: "prom_ds_phase5"
-            relativeTimeRange: { from: 300, to: 0 }
-            # Track changes to the SUM of the IP across all nodes. 
-            # If it moves from db-01 to db-02, the 'instance' label changes, 
-            # which Prometheus sees as a change in the result set.
-            model: { expr: "changes((sum by (instance) (node_network_address_info{address='10.0.0.100'}))[5m:])" }
+            relativeTimeRange: { from: 60, to: 0 }
+            # Filter specifically for Galera nodes to detect if the Cluster IP is missing
+            model: { expr: "sum(node_network_address_info{address='10.0.0.100', instance=~'db-.*'}) or vector(0)" }
           - refId: B
             datasourceUid: "__expr__"
-            model: { type: "reduce", expression: "A", reducer: "sum", settings: { mode: "dropNN" } }
+            model: { type: "reduce", expression: "A", reducer: "last", settings: { mode: "dropNN" } }
           - refId: C
             datasourceUid: "__expr__"
-            model: { type: "threshold", expression: "B", conditions: [{ evaluator: { params: [0], type: "gt" }, operator: { type: "and" }, query: { params: [] }, type: "query" }] }
-        for: 0s
-        annotations:
-          summary: "HCIP Writer Shift Detected"
-          description: "The Writing HCIP 10.0.0.100 moved or vanished from the active node!"
-        labels: { severity: warning }
+            model: { type: "threshold", expression: "B", conditions: [{ evaluator: { params: [1], type: "lt" }, operator: { type: "and" }, query: { params: [] }, type: "query" }] }
+        for: 30s # Adding a small buffer to prevent false alarms during quick failovers
+        annotations: { summary: "HCIP Offline", description: "The HCIP ON dummy O is missing from both DB nodes!" }
+        labels: { severity: critical }
 
-      - uid: hcip_offline
-        title: GaleraHCIP_Offline
+      - uid: vip_offline
+        title: VIP_Offline
         condition: C
         data:
           - refId: A
@@ -102,7 +98,7 @@ groups:
           - refId: C
             datasourceUid: "__expr__"
             model: { type: "threshold", expression: "B", conditions: [{ evaluator: { params: [1], type: "lt" }, operator: { type: "and" }, query: { params: [] }, type: "query" }] }
-        for: 15s
+        for: 0s
         annotations: { summary: "VIP Offline", description: "LVS VIP is missing from all Load Balancers!" }
         labels: { severity: critical }
 

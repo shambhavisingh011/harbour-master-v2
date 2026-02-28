@@ -232,10 +232,16 @@ async def create_custom_db(data: dict):
     db_user = data.get('db_user', '').lower().strip()
     db_pass = data.get('db_password')
     role = data.get('role', 'Read-Only')
-    ttl = data.get('ttl', 30)
+    ttl = data.get('ttl', 99)
     target_vip = data.get('vip')
     admin_pass = data.get('admin_password')
-
+    try:
+        ttl = int(ttl)
+        if ttl < 1 or ttl > 365:
+            # SRE Guardrail: Prevent absurdly short or year-plus TTLs
+            ttl = 30 # Fallback to default
+    except (ValueError, TypeError):
+        ttl = 30 # Default safety
     # 2. SRE Guardrail: Forbidden Names Check
     FORBIDDEN = ['mysql', 'root', 'admin', 'sys', 'information_schema', 'performance_schema']
     if db_name in FORBIDDEN or db_user in FORBIDDEN:
