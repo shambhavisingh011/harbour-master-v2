@@ -1,16 +1,19 @@
+# Ignore the entire Ansible directory (Fixes the permission denied error)
+ansible/
+
 # Ignore local environments
 venv/
 .venv/
 __pycache__/
 *.pyc
 
-# Ignore frontend heavyweights
+# Ignore frontend (if building from root)
 node_modules/
 build/
 dist/
 .npm/
 
-# Ignore local database or log files
-*.log
+# Ignore sensitive/heavy files
 .git/
 .ssh/
+*.log

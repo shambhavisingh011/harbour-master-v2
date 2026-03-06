@@ -151,30 +151,35 @@ async def preview_config(request: ClusterDeploymentRequest):
     """
     for node in request.galera_nodes:
         node.server_id = calculate_deterministic_server_id(str(node.ip))
-    
+
     template_path = BACKEND_DIR / "ansible" / "roles" / "galera" / "templates" / "galera.cnf.j2"
     if not template_path.exists():
         raise HTTPException(status_code=404, detail="Template not found")
-    
     try:
         with open(template_path, 'r') as f:
             template_content = f.read()
-        
+
+        # 1. Create a clean dictionary from the request
+        context = request.model_dump(mode='json')
+
+        # 2. Add the calculated Galera specific variables
         ips = [str(node.ip) for node in request.galera_nodes]
-        cluster_address = f"gcomm://{','.join(ips)}"
-        
-        # Use the first node from the request as the context for the preview
         target_node = request.galera_nodes[0]
         
+        context.update({
+            "wsrep_cluster_address": f"gcomm://{','.join(ips)}",
+            "inventory_hostname": target_node.node_name,
+            "ansible_host": str(target_node.ip),
+            "mariadb_version": str(request.mariadb_version) # Force string cast
+        })
+
+        # 3. Render using the explicit context dictionary
         template = Template(template_content)
-        rendered_conf = template.render(
-            **request.model_dump(mode='json'),
-            wsrep_cluster_address=cluster_address,
-            inventory_hostname=target_node.node_name, # FIXED: Picks user input
-            ansible_host=str(target_node.ip)
-        )
+        rendered_conf = template.render(context) # Pass the whole dict
+
         return {"filename": "60-galera.cnf", "content": rendered_conf}
     except Exception as e:
+        print(f"RENDER ERROR: {str(e)}") # Check your harbor-backend logs!
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/deploy")

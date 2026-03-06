@@ -32,9 +32,9 @@ virtual_server {{ lvs_vip }} 3306 {
     lb_kind DR
     protocol TCP
 
-    # Dynamically generate real_server entries for all Galera nodes
+    
     {% for host in groups['galera'] %}
-    # We only include the first two nodes as potential writers per your setup
+    # We only include the first two nodes as potential writers per our setup
     {% if loop.index <= 2 %}
     real_server {{ hostvars[host]['ansible_default_ipv4']['address'] }} 3306 {
         weight 1

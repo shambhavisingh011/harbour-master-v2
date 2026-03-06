@@ -1,14 +1,20 @@
 ---
 # 1. INSTALLATION
-- name: Install Node and MySQL Exporters
+- name: Install Node Exporter (All Nodes)
   apt:
-    name:
-      - prometheus-node-exporter
-      - prometheus-mysqld-exporter
-      - python3-pymysql
+    name: prometheus-node-exporter
     state: present
     update_cache: yes
   become: yes
+
+- name: Install MySQL Exporter (DB Nodes Only)
+  apt:
+    name: 
+      - prometheus-mysqld-exporter
+      - python3-pymysql
+    state: present
+  become: yes
+  when: inventory_hostname in (groups['galera'] + groups['async'] | default([]))
 
 - name: "Create MariaDB Exporter User"
   community.mysql.mysql_user:
@@ -28,7 +34,6 @@
   delay: 5
   # This targets all database nodes (Galera + Async)
   when: inventory_hostname in (groups['galera'] + groups['async'] | default([]))
-
 # 4. CONFIGURATION (IDEMPOTENT)
 - name: Configure MySQL Exporter Auth
   copy:
@@ -40,10 +45,11 @@
       [client]
       user=exporter
       password={{ exporter_password }}
-      host=localhost
+      host=127.0.0.1  
   become: yes
   register: exporter_cfg
   when: inventory_hostname in (groups['galera'] + groups['async'] | default([]))
+  notify: restart mysql exporter
 
 - name: Set MySQL Exporter Flags
   lineinfile:
@@ -53,33 +59,36 @@
   become: yes
   register: exporter_flags
   when: inventory_hostname in (groups['galera'] + groups['async'] | default([]))
+  notify: restart mysql exporter  
 
-- name: Set Node Exporter Flags
+- name: Update Node Exporter ARGS for IP Visibility
   lineinfile:
     path: /etc/default/prometheus-node-exporter
     regexp: '^ARGS='
-    # ADDED --collector.network_route below
-    line: 'ARGS="--collector.netdev.address-info --collector.ipvs --collector.network_route"'
+    line: 'ARGS="--collector.netdev.address-info --collector.network_route"'
   become: yes
   notify: restart node exporter
 
 # 5. SERVICE MANAGEMENT
-- name: Ensure Monitoring Agents are started and enabled
+- name: Force Systemd to recognize flag changes
   systemd:
-    name: "{{ item }}"
-    state: "{{ 'restarted' if (exporter_cfg.changed or exporter_flags.changed) else 'started' }}"
-    enabled: yes
     daemon_reload: yes
   become: yes
-  loop:
-    - prometheus-node-exporter
-    - prometheus-mysqld-exporter
-  when: inventory_hostname in (groups['galera'] + groups['async'] | default([]))
 
-- name: Ensure Node Exporter is active on non-DB nodes
+- name: Start Node Exporter
   systemd:
     name: prometheus-node-exporter
     state: started
     enabled: yes
   become: yes
-  when: inventory_hostname not in (groups['galera'] + groups['async'] | default([]))
+
+- name: Start MySQL Exporter (DB Nodes Only)
+  systemd:
+    name: prometheus-mysqld-exporter
+    state: started
+    enabled: yes
+  become: yes
+  
+  register: mysqld_exporter_start
+  ignore_errors: yes 
+  when: inventory_hostname in (groups['galera'] + groups['async'] | default([]))

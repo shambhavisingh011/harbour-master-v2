@@ -23,7 +23,8 @@ services:
     build: ./backend
     container_name: harbor-backend
     volumes:
-      - /home/ubuntu/.ssh:/home/ubuntu/.ssh:rw  # <--- Does it have this?
+      - /home/ubuntu/.ssh:/home/ubuntu/.ssh:rw  
+      - ./backend:/app
     networks:
       - harbor-network
 networks:

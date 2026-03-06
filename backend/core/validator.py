@@ -18,15 +18,26 @@ class InfrastructureValidator:
             return res.returncode == 0
         except Exception:
             return False
-    def is_port_open(self, ip, port=3306) -> bool:
-        """Checks if MariaDB port is already occupied."""
+    def is_db_installed(self, ip) -> bool:
+        """
+        Robust check: Connects via SSH to see if MariaDB is actually installed or running.
+        This works even if port 3306 is blocked by a firewall.
+        """
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         try:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.settimeout(1)
-                return s.connect_ex((str(ip), port)) == 0
+            ssh.connect(str(ip), username="ubuntu", key_filename=self.key_path, timeout=3)
+               
+            cmd = "pgrep mariadbd || ls /var/lib/mysql/grastate.dat"
+
+            stdin, stdout, stderr = ssh.exec_command(cmd)
+            occupied = stdout.channel.recv_exit_status() == 0
+
+            ssh.close()
+            return occupied
         except Exception:
             return False
-    # Line 72: Ensure the function definition ends with a colon
+
     def _get_cluster_health(self, ip: str, password: str) -> Dict:
         """Queries an existing MariaDB instance ONLY for Galera health metrics."""
         health = {"status": "Disconnected", "size": "0", "ready": "OFF"}
@@ -36,7 +47,6 @@ class InfrastructureValidator:
         try:
             ssh.connect(str(ip), username="ubuntu", key_filename=self.key_path, timeout=3)
 
-            # Strictly Galera status checks
             cmd = (
                 f"mariadb -u root -p'{password}' -e \"SHOW STATUS LIKE 'wsrep_local_state_comment'; "
                 "SHOW STATUS LIKE 'wsrep_cluster_size'; "
@@ -58,10 +68,6 @@ class InfrastructureValidator:
 
         return health
     def get_remote_resources(self, ip) -> Dict:
-        """
-        Connects via SSH to fetch actual CPU, RAM, and Disk from the target VM.
-        This ensures the VM isn't under-provisioned before Ansible starts.
-        """
         resources = {
             "os_family": "unknown",
             "os_version": "unknown",
@@ -125,10 +131,7 @@ class InfrastructureValidator:
         #    return False, f"Resource Error: {galera_ips[0]} has only {remote['disk_gb']}GB Disk. Minimum 20GB required."
         # OS Path Check for wsrep_provider
         deployment_nodes = galera_ips
-
-        # Check if port 3306 is open on any of these nodes
-        occupied_nodes = [ip for ip in deployment_nodes if self.is_port_open(ip)]
-
+        occupied_nodes = [ip for ip in deployment_nodes if self.is_db_installed(ip)]
         if occupied_nodes:
             # We no longer bypass for 'admin'. Everyone sees the health report if nodes are occupied.
             health_reports = []

@@ -11,11 +11,13 @@ def run_deployment(log_callback=None):
     """
     # --- 1. SETUP PATHS ---
     current_file = Path(__file__).resolve()
-    base_dir = current_file.parent.parent  # Points to /backend
-    playbook_path = base_dir / 'ansible' / 'deploy_cluster.yml'
-    inventory_path = base_dir / 'ansible' / 'inventory' / 'hosts.yml'
-    vars_path = base_dir / 'ansible' / 'inventory' / 'extravars.yml'
+    base_dir = current_file.parent.parent  # /backend
+    ansible_dir = base_dir / 'ansible'     # /backend/ansible
 
+# Use absolute paths for everything to be safe
+    playbook_path = ansible_dir / 'deploy_cluster.yml'
+    inventory_path = ansible_dir / 'inventory' / 'hosts.yml'
+    vars_path = ansible_dir / 'inventory' / 'extravars.yml'
     # --- 2. LOAD EXTRA VARIABLES ---
     extravars = {}
     if vars_path.exists():
@@ -37,14 +39,15 @@ def run_deployment(log_callback=None):
                 # We strip extra trailing newlines to keep the UI tidy
                 log_callback(stdout.rstrip())
         return True
-
+    print(f"DEBUG: Passing Extravars: {extravars}")
+    print(f"DEBUG: MariaDB Version in Dict: {extravars.get('mariadb_version')}")
     # --- 4. LAUNCH ANSIBLE RUNNER ---
     print(f"\nLaunching Ansible Runner...")
     print(f"Private Data Dir: {base_dir}")
     print(f"Playbook: {playbook_path}")
     # We use event_handler to capture live output for the UI
     r = ansible_runner.run(
-        private_data_dir=str(base_dir),
+        private_data_dir=str(ansible_dir),
         playbook=str(playbook_path),
         inventory=str(inventory_path),
         extravars=extravars,

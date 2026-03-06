@@ -72,7 +72,9 @@ groups:
             datasourceUid: "prom_ds_phase5"
             relativeTimeRange: { from: 60, to: 0 }
             # Filter specifically for Galera nodes to detect if the Cluster IP is missing
-            model: { expr: "sum(node_network_address_info{address='10.0.0.100', instance=~'db-.*'}) or vector(0)" }
+            model: { expr: "sum(node_network_address_info{address='10.0.0.100', instance=~'db-node-.*'})" }
+# Set No Data behavior to Alerting
+            no_data_state: Alerting
           - refId: B
             datasourceUid: "__expr__"
             model: { type: "reduce", expression: "A", reducer: "last", settings: { mode: "dropNN" } }
@@ -81,24 +83,5 @@ groups:
             model: { type: "threshold", expression: "B", conditions: [{ evaluator: { params: [1], type: "lt" }, operator: { type: "and" }, query: { params: [] }, type: "query" }] }
         for: 30s # Adding a small buffer to prevent false alarms during quick failovers
         annotations: { summary: "HCIP Offline", description: "The HCIP ON dummy O is missing from both DB nodes!" }
-        labels: { severity: critical }
-
-      - uid: vip_offline
-        title: VIP_Offline
-        condition: C
-        data:
-          - refId: A
-            datasourceUid: "prom_ds_phase5"
-            relativeTimeRange: { from: 60, to: 0 }
-            # Filter specifically for LVS nodes so Galera's local VIP doesn't trick us
-            model: { expr: "sum(node_network_address_info{address='{{ lvs_vip }}', instance=~'lvs-.*'}) or vector(0)" }
-          - refId: B
-            datasourceUid: "__expr__"
-            model: { type: "reduce", expression: "A", reducer: "last", settings: { mode: "dropNN" } }
-          - refId: C
-            datasourceUid: "__expr__"
-            model: { type: "threshold", expression: "B", conditions: [{ evaluator: { params: [1], type: "lt" }, operator: { type: "and" }, query: { params: [] }, type: "query" }] }
-        for: 0s
-        annotations: { summary: "VIP Offline", description: "LVS VIP is missing from all Load Balancers!" }
         labels: { severity: critical }
 

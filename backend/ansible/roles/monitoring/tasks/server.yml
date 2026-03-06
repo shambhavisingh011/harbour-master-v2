@@ -53,7 +53,7 @@
     group: prometheus
     mode: '0644'
   become: yes
-  notify: Restart Prometheus
+  notify: restart prometheus
 
 # --- ALERTING PROVISIONING ---
 
@@ -65,7 +65,7 @@
     group: grafana
     mode: '0640'
   become: yes
-  notify: Restart Grafana
+  notify: restart grafana
 
 - name: Deploy Grafana Contact Points
   template:
@@ -75,7 +75,7 @@
     group: grafana
     mode: '0640'
   become: yes
-  notify: Restart Grafana
+  notify: restart grafana
 
 - name: Deploy Grafana Notification Policies
   template:
@@ -85,7 +85,7 @@
     group: grafana
     mode: '0640'
   become: yes
-  notify: Restart Grafana
+  notify: restart grafana
 
 # --- SMTP AND SYSTEM CONFIG ---
 
@@ -107,7 +107,7 @@
     - { option: 'startTLS_policy', value: 'MandatoryStartTLS' }
   become: yes
   no_log: true
-  notify: Restart Grafana
+  notify: restart grafana
 
 
 # --- DASHBOARDS AND DATASOURCES ---
@@ -120,7 +120,7 @@
     group: grafana
     mode: '0640'
   become: yes
-  notify: Restart Grafana
+  notify: restart grafana
 
 - name: Sync Dashboard JSON Files
   copy:
@@ -130,7 +130,7 @@
     group: grafana
     mode: '0644'
   become: yes
-  notify: Restart Grafana
+  notify: restart grafana
 - name: Provision Dashboard Provider
   template:
     src: dashboards_provider.yml.j2
@@ -139,7 +139,7 @@
     group: grafana
     mode: '0640'
   become: yes
-  notify: Restart Grafana
+  notify: restart grafana
 
 - name: Render Custom Galera Dashboard
   template:
@@ -149,7 +149,7 @@
     group: grafana
     mode: '0644'
   become: yes
-  notify: Restart Grafana
+  notify: restart grafana
 
 - name: Start and Enable Services
   systemd:

@@ -11,13 +11,13 @@
       file:
         path: "{{ playbook_dir }}/roles/lvs/files"
         state: directory
-        mode: '0755'
+        mode: '0755'                                #readable by other rw by user
 
     - name: Generate SSH keypair for LVS Health Checks
       openssh_keypair:
         path: "{{ playbook_dir }}/roles/lvs/files/id_rsa"
-        type: rsa
-        size: 4096
+        type: rsa                                   #asymmetric encryption , encrypt a key and send it to other 
+        size: 4096                                  #4096 bit key length 
         force: false
       register: key_gen
 
@@ -30,12 +30,12 @@
   become: yes
   tasks:
     - name: Wait for apt lock to be released
-      shell: "while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do sleep 5; done;"
+      shell: "while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do sleep 5; done;"    #waits till dpkg frontend lock is free before setting up the installation
       timeout: 300
 
     - name: Install basic utilities
       apt:
-        name: [curl, wget, software-properties-common, gnupg2]
+        name: [curl, wget, software-properties-common, gnupg2]        #command line tool,used to download files from web, tool for download, repo authenticity 
         state: present
         update_cache: yes
 
